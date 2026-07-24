@@ -24,15 +24,19 @@ To solve this, I designed **Resume Match Score** as an intelligent, context-awar
 
 Designing a client-side AI browser extension required tackling several non-trivial engineering constraints:
 
-### 1. Client-Side PII Sanitization & Transparency
-* **Challenge:** Preventing sensitive personal data (full name, phone numbers, email addresses, personal links) from leaking to third-party LLM providers.
-* **Solution:** Developed an in-browser Regex-based scrubbing pipeline (`ai-analyzer.js`). Before any payload leaves the client, the extension parses the resume text, detects contact patterns, and dynamically infers and redacts the candidate's name from header blocks. Users can inspect the exact sanitized prompt payload in real time via an interactive modal before dispatch.
+### 1. Client-Side PII Sanitization & Full Payload Transparency
+* **Challenge:** Preventing sensitive personal data (full name, phone numbers, email addresses, personal links) from leaking to third-party LLM providers while giving users 100% visibility.
+* **Solution:** Developed an in-browser Regex-based scrubbing pipeline (`ai-analyzer.js`). Before any payload leaves the client, the extension parses the resume text, detects contact patterns, and dynamically infers and redacts the candidate's name from header blocks. Additionally, built an interactive **"View Shared Data" Modal** allowing candidates to audit the exact sanitized prompt, resume snippet, and job text sent to the LLM.
 
-### 2. Zero-Cost, BYOK (Bring-Your-Own-Key) Architecture
+### 2. Universal Job Board Adaptability ("Support This Page")
+* **Challenge:** Job postings exist across hundreds of ATS platforms and company career portals, making static hardcoded domain lists insufficient.
+* **Solution:** Engineered a dynamic URL pattern manager. If a candidate visits an unlisted niche job portal or custom career site, they can click **"Support This Page"** to instantly whitelist the domain into their `chrome.storage` allowed patterns list, giving them immediate single-click parsing capability anywhere on the web.
+
+### 3. Zero-Cost, BYOK (Bring-Your-Own-Key) Architecture
 * **Challenge:** Avoiding costly backend server infrastructure and recurring subscription paywalls for users.
 * **Solution:** Implemented a decoupled, serverless client model using Chrome's secure `chrome.storage` API. Integrated high-throughput, free-tier LLM endpoints (**Groq / Llama 3** and **Nvidia NIM**). The extension executes requests directly from the client, eliminating API middleman latency and backend operating expenses.
 
-### 3. Structured JSON Enforcement & Resilient Parsing
+### 4. Structured JSON Enforcement & Resilient Parsing
 * **Challenge:** LLM output drift, conversational prefixing, or invalid JSON structures causing client UI rendering crashes.
 * **Solution:** Engineered strict system prompts enforcing structured JSON schemas. Paired this with a resilient parsing wrapper that validates schema signatures, sanitizes raw string responses, and gracefully injects structural fallbacks (e.g., handling missing or malformed array fields) to guarantee UI stability.
 
@@ -43,8 +47,10 @@ Designing a client-side AI browser extension required tackling several non-trivi
 - 🎯 **Instant Match Rating:** Computes a normalized 0–100 alignment score comparing candidate qualifications against job requirements.
 - 💡 **Qualitative AI Verdicts:** Generates executive fit ratings (`PRIORITISE`, `CONSIDER`, or `PASS`) accompanied by a concise synthesis of strengths and gaps.
 - 🛠️ **Skill Gap Breakdown:** Distinguishes between required and preferred skills, rendering interactive UI chips for missing competencies.
+- 🌐 **Custom Job Board Whitelisting ("Support This Page"):** Empowers candidates to add any unsupported job site domain directly into their local allowed patterns list with one click.
+- 👁️ **Full LLM Payload Transparency:** Includes a dedicated **"View Shared Data"** modal displaying the exact sanitized prompt payload, prompt length, and LLM model name.
 - ✉️ **Targeted Cold Email Generator:** Auto-drafts tailored outreach messages to recruiters, highlighting candidate alignment for the specific role.
-- 🛡️ **Privacy Auditability:** On-demand transparency tool enabling users to review sanitized prompt data prior to API execution.
+- 🚫 **Fluff Word Management:** Custom excluded keyword list to prevent generic buzzwords (e.g., "teamwork", "leadership") from skewing skill scores.
 - 🎨 **Modern SPA Experience:** Polished Material Design interface featuring dark mode support and custom CSS steam-train animation for processing states.
 
 ---
@@ -63,17 +69,18 @@ graph TD
     Controller -- "LLM Semantic Engine" --> AIAnalyzer[ai-analyzer.js]
     
     AIAnalyzer -- "1. Local PII Scrubber" --> Sanitizer[Regex Pipeline]
-    Sanitizer -- "2. Transmit Sanitized Prompt" --> LLMAPI[Groq / Nvidia NIM API]
+    Sanitizer -- "2. Audit Payload / View Shared Data" --> AuditModal[Transparency UI]
+    Sanitizer -- "3. Transmit Sanitized Prompt" --> LLMAPI[Groq / Nvidia NIM API]
 ```
 
 ### Modular Codebase Structure
 - **`manifest.json`**: Chrome Extension Manifest V3 configuration defining active tab permissions and API host permissions.
 - **`popup.html` & `popup.css`**: Responsive Single Page Application UI built with modern CSS custom properties and dynamic layout tokens.
-- **`popup.js` & `ui-utils.js`**: Core UI state manager, event dispatchers, view router, and DOM controllers.
+- **`popup.js` & `ui-utils.js`**: Core UI state manager, event dispatchers, view router, modal controllers, and domain whitelisting logic.
 - **`content.js`**: DOM scraper extracting raw job description text from target web pages.
 - **`ai-analyzer.js`**: PII sanitization engine, prompt template builder, schema validator, and LLM API client.
 - **`matcher.js`**: Local deterministic keyword and n-gram similarity engine for offline scoring.
-- **`storage.js`**: Promise-based wrapper around `chrome.storage.local`.
+- **`storage.js`**: Promise-based wrapper around `chrome.storage.local` managing API keys, allowed domain patterns, and fluff word filters.
 
 ---
 
@@ -109,4 +116,5 @@ This project is licensed under the [MIT License](LICENSE).
   <b>⭐ If you find this project useful, please consider giving it a star on <a href="https://github.com/sivaprasathm93/resume-match-score">GitHub</a>! ⭐</b><br><br>
   Designed & Built with ❤️ by <b>Sivaprasath Mohandass</b>
 </div>
+
 
