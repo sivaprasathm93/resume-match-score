@@ -96,3 +96,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+<div align="center">
+  <b>⭐ If you find this extension helpful, please consider giving it a star on <a href="https://github.com/sivaprasathm93/resume-match-score">GitHub</a>! ⭐</b><br><br>
+  Built with ❤️ by <b>Sivaprasath Mohandass</b>
+</div>
