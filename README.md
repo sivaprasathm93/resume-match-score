@@ -8,8 +8,8 @@
 
 <div align="center">
   <br>
-  <img src="assets/loader_screenshot.png" alt="Executive Match Verdict & AI Privacy Banner" width="360" style="border-radius: 14px; margin-right: 12px;">
-  <img src="assets/results_screenshot.png" alt="Match Results & Skill Recommendations" width="360" style="border-radius: 14px;">
+  <img src="assets/loader_screenshot.png?v=2" alt="Executive Match Verdict & AI Privacy Banner" width="360" style="border-radius: 14px; margin-right: 12px;">
+  <img src="assets/results_screenshot.png?v=2" alt="Match Results & Skill Recommendations" width="360" style="border-radius: 14px;">
   <br><br>
 </div>
 
