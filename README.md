@@ -6,6 +6,12 @@
 
 **Resume Match Score** is an AI-powered Chrome Extension engineered to bridge the gap between job seekers and Applicant Tracking Systems (ATS). By performing instant, privacy-preserved semantic matching between a candidate's resume and live job descriptions, it delivers real-time, actionable insights directly within the browser.
 
+<div align="center">
+  <br>
+  <img src="assets/screenshot.png" alt="Resume Match Score Interface Preview" width="380" style="border-radius: 16px;">
+  <br>
+</div>
+
 ---
 
 ## 📖 The Story: Why I Built This
