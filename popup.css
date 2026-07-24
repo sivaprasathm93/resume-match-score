@@ -2430,3 +2430,24 @@ html, body {
   font-weight: 500;
   white-space: nowrap;
 }
+
+/* ── App Footer Warning ── */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 16px 14px 16px;
+  font-size: 11px;
+  color: var(--on-surface-variant);
+  opacity: 0.8;
+  text-align: center;
+  border-top: 1px solid var(--outline-variant);
+  margin-top: 16px;
+  user-select: none;
+}
+
+.app-footer .footer-icon {
+  font-size: 14px;
+  color: var(--warning);
+}
