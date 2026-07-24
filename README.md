@@ -8,8 +8,9 @@
 
 <div align="center">
   <br>
-  <img src="assets/screenshot.png" alt="Resume Match Score Interface Preview" width="380" style="border-radius: 16px;">
-  <br>
+  <img src="assets/loader_screenshot.png" alt="AI Processing & Steam Train Loader" width="360" style="border-radius: 14px; margin-right: 12px;">
+  <img src="assets/results_screenshot.png" alt="Match Results & Skill Recommendations" width="360" style="border-radius: 14px;">
+  <br><br>
 </div>
 
 ---
