@@ -40,11 +40,16 @@ Designing a client-side AI browser extension required tackling several non-trivi
 * **Challenge:** LLM output drift, conversational prefixing, or invalid JSON structures causing client UI rendering crashes.
 * **Solution:** Engineered strict system prompts enforcing structured JSON schemas. Paired this with a resilient parsing wrapper that validates schema signatures, sanitizes raw string responses, and gracefully injects structural fallbacks (e.g., handling missing or malformed array fields) to guarantee UI stability.
 
+### 5. Dual-Engine Architecture & Graceful Static Fallback
+* **Challenge:** External AI APIs can encounter rate limits (HTTP 429 quota exhaustion), network dropouts, or unconfigured API keys, which could disrupt the application lifecycle.
+* **Solution:** Built an automated dual-engine fallback pipeline. If an AI API request fails or throws a quota exception, the extension seamlessly falls back to the client-side deterministic matching engine (`matcher.js`). The user receives an instant offline score and skill breakdown without seeing broken UI errors or experiencing downtime.
+
 ---
 
 ## ✨ Key Features
 
 - 🎯 **Instant Match Rating:** Computes a normalized 0–100 alignment score comparing candidate qualifications against job requirements.
+- ⚡ **Dual-Engine Resiliency & Graceful Fallback:** Automatically degrades to local offline static matching (`matcher.js`) if the cloud AI API encounters rate limits, quota exhaustion, or network dropouts—guaranteeing 100% availability.
 - 💡 **Qualitative AI Verdicts:** Generates executive fit ratings (`PRIORITISE`, `CONSIDER`, or `PASS`) accompanied by a concise synthesis of strengths and gaps.
 - 🛠️ **Skill Gap Breakdown:** Distinguishes between required and preferred skills, rendering interactive UI chips for missing competencies.
 - 🌐 **Custom Job Board Whitelisting ("Support This Page"):** Empowers candidates to add any unsupported job site domain directly into their local allowed patterns list with one click.
@@ -71,6 +76,7 @@ graph TD
     AIAnalyzer -- "1. Local PII Scrubber" --> Sanitizer[Regex Pipeline]
     Sanitizer -- "2. Audit Payload / View Shared Data" --> AuditModal[Transparency UI]
     Sanitizer -- "3. Transmit Sanitized Prompt" --> LLMAPI[Groq / Nvidia NIM API]
+    AIAnalyzer -- "API Failure / 429 Quota Fallback" --> StaticMatcher
 ```
 
 ### Modular Codebase Structure
