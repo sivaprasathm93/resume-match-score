@@ -1495,18 +1495,24 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  max-width: 100%;
+  margin-top: 8px;
 }
 
 .skill-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   padding: 6px 12px;
   border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 500;
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   animation: chipIn 0.3s ease backwards;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .skill-chip:hover {
@@ -1514,43 +1520,25 @@ html, body {
   box-shadow: var(--shadow-1);
 }
 
+.skill-chip-text {
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.skill-chip-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 @keyframes chipIn {
   from { opacity: 0; transform: scale(0.85); }
   to { opacity: 1; transform: scale(1); }
-}
-
-.skill-chip .chip-icon {
-  font-size: 14px;
-}
-
-.skill-chip .chip-category {
-  font-size: 10px;
-  opacity: 0.7;
-  margin-left: 2px;
-}
-
-.skill-chip .chip-delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.1);
-  color: currentColor;
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  margin-left: 4px;
-  opacity: 0.6;
-  transition: opacity 0.2s, background 0.2s, transform 0.2s;
-}
-
-.skill-chip .chip-delete:hover {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.25);
-  transform: scale(1.1);
 }
 
 /* Fluff Words Modal */
@@ -1636,45 +1624,28 @@ html, body {
 /* Chip variants */
 .chip-matched {
   background: var(--success-container);
-  color: #137333;
-  border: 1px solid #ceead6;
+  color: var(--success);
+  border: 1px solid rgba(30, 142, 62, 0.25);
 }
 
 .chip-missing-required {
   background: var(--error-container);
-  color: #a50e0e;
-  border: 1px solid #f5c6c2;
+  color: var(--error);
+  border: 1px solid rgba(217, 48, 37, 0.3);
 }
 
 .chip-missing-preferred {
   background: var(--warning-container);
-  color: #995700;
-  border: 1px solid #f5e1b7;
+  color: var(--warning);
+  border: 1px solid rgba(227, 116, 0, 0.3);
 }
 
-.chip-bonus {
-  background: var(--info-container);
-  color: #1558b0;
-  border: 1px solid #bbd4f7;
-}
-
-.chip-label {
-  display: inline-block;
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-left: 4px;
-}
-
-.label-required {
+.badge-required {
   background: rgba(217, 48, 37, 0.15);
   color: var(--error);
 }
 
-.label-preferred {
+.badge-preferred {
   background: rgba(227, 116, 0, 0.15);
   color: var(--warning);
 }
@@ -1694,6 +1665,8 @@ html, body {
   border-radius: var(--radius-md);
   padding: 16px;
   margin-bottom: 4px;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .suggestions-header {
@@ -1719,17 +1692,21 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 100%;
 }
 
 .suggestion-item {
   display: flex;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 12px 14px;
   background: var(--surface);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: 1px solid var(--outline-variant);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
   animation: fadeIn 0.3s ease backwards;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .suggestion-item:hover {
@@ -1744,22 +1721,31 @@ html, body {
   margin-top: 1px;
 }
 
-.suggestion-body {
+.suggestion-content {
   flex: 1;
+  min-width: 0; /* Critical fix for flex container text wrapping */
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
-.suggestion-title {
+.suggestion-content h4 {
   font-family: var(--font-primary);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--on-surface);
-  margin-bottom: 3px;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
-.suggestion-desc {
+.suggestion-content p {
   font-size: 12px;
   color: var(--on-surface-variant);
   line-height: 1.5;
+  margin-bottom: 8px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Skills 2-column grid inside suggestions */

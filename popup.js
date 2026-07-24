@@ -589,17 +589,17 @@ function renderSkillChips(containerId, requiredSet, preferredSet, isMatched) {
   if (!container) return;
   container.innerHTML = '';
 
-  const baseClass = isMatched ? 'chip-matched' : 'chip-missing';
-
   for (const skillKey of requiredSet) {
     const info = getSkillInfo(skillKey);
-    const chip = createSkillChip(info.display, info.category, `${baseClass} chip-required`, 'Required');
+    const chipClass = isMatched ? 'chip-matched' : 'chip-missing-required';
+    const chip = createSkillChip(info.display, info.category, chipClass, 'Required');
     container.appendChild(chip);
   }
 
   for (const skillKey of preferredSet) {
     const info = getSkillInfo(skillKey);
-    const chip = createSkillChip(info.display, info.category, `${baseClass} chip-preferred`, 'Preferred');
+    const chipClass = isMatched ? 'chip-matched' : 'chip-missing-preferred';
+    const chip = createSkillChip(info.display, info.category, chipClass, 'Preferred');
     container.appendChild(chip);
   }
 }
@@ -607,9 +607,10 @@ function renderSkillChips(containerId, requiredSet, preferredSet, isMatched) {
 function createSkillChip(displayName, category, extraClass, badgeLabel) {
   const chip = document.createElement('span');
   chip.className = `skill-chip ${extraClass}`;
+  const badgeClass = badgeLabel.toLowerCase() === 'required' ? 'badge-required' : 'badge-preferred';
   chip.innerHTML = `
-    <span class="chip-label">${escapeHtml(displayName)}</span>
-    ${badgeLabel ? `<span class="chip-tag">${badgeLabel}</span>` : ''}
+    <span class="skill-chip-text">${escapeHtml(displayName)}</span>
+    ${badgeLabel ? `<span class="skill-chip-badge ${badgeClass}">${badgeLabel}</span>` : ''}
   `;
   chip.title = `${displayName} (${category})`;
   return chip;
