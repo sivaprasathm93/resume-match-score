@@ -4,102 +4,109 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Chrome_Extension-yellow.svg)
 
-## 📖 The Story: Why I Built This
-
-Job hunting is famously described as a "black box." You spend hours tailoring your resume, submit it into an ATS (Applicant Tracking System), and then... silence. I realized the core problem wasn't a lack of qualifications, but a lack of *immediate feedback* on how a resume aligns with the specific language of a job posting. 
-
-I wanted to build a tool that solves this by acting as a personal application assistant. My goals were strictly defined:
-1. **Zero Friction:** It had to work directly in the browser while looking at a job posting. No copy-pasting back and forth between AI chat windows.
-2. **Absolute Privacy:** Resumes contain highly sensitive Personally Identifiable Information (PII). Sending raw resumes to cloud APIs is a major privacy violation.
-3. **Actionable Insights:** It shouldn't just say "70% match". It needs to highlight missing skills, assess strengths, and suggest actionable ways to improve the resume.
-
-The result is **Resume Match Score**, a Chrome Extension with a dual-engine architecture that provides deep, AI-driven context analysis while rigorously defending user privacy through local, browser-based sanitization.
+**Resume Match Score** is an AI-powered Chrome Extension engineered to bridge the gap between job seekers and Applicant Tracking Systems (ATS). By performing instant, privacy-preserved semantic matching between a candidate's resume and live job descriptions, it delivers real-time, actionable insights directly within the browser.
 
 ---
 
-## 🛠️ The Technical Challenges (And How I Solved Them)
+## 📖 The Story: Why I Built This
 
-Building an AI-integrated Chrome Extension presented several unique engineering challenges which I tackled iteratively:
+Job hunting often feels like sending your resume into a "black box." Candidates spend countless hours tailoring applications, submitting them into automated screening systems, and waiting in silence. The core friction isn't a lack of candidate potential—it's the absence of **immediate, objective feedback** on how closely a resume mirrors the explicit requirements and domain language of a target role.
 
-### 1. The Privacy Challenge: Sanitizing Data Before the Cloud
-LLMs are incredible at semantic matching, but I refused to send user emails, phone numbers, and names to third-party APIs.
-**The Solution:** I engineered a local Regex-based PII scrubber (`ai-analyzer.js`) that runs entirely within the browser. Before a single byte of data is sent to the LLM, the extension parses the resume text, detects patterns (emails, URLs, phone numbers), and dynamically infers and strips the candidate's name from the document header. Users can click "View Shared Data" to transparently audit the exact, sanitized prompt being sent.
+To solve this, I designed **Resume Match Score** as an intelligent, context-aware co-pilot with three uncompromising engineering principles:
 
-### 2. The Cost Challenge: Keeping It Free
-Most AI tools charge monthly subscriptions to cover backend API costs. I wanted this to remain free and accessible.
-**The Solution:** I architected a **Bring-Your-Own-Key (BYOK)** system and integrated with high-performance, free-tier LLM providers: **Groq** (Llama 3) and **Nvidia NIM**. The user simply pastes their free API key, which is securely stored in Chrome's `local.storage` and used directly for requests. There is no backend server, no database, and no recurring infrastructure costs.
+1. **Zero-Context-Switching Workflow:** Operates natively inside the active browser tab while viewing any job listing, eliminating manual copy-pasting into external AI chat interfaces.
+2. **Privacy-First Data Guardrails:** Resumes contain sensitive Personally Identifiable Information (PII). Transmitting raw candidate data to third-party cloud APIs poses significant privacy risks. Sanitization must happen locally *before* external transmission.
+3. **Actionable, Multidimensional Feedback:** Moves beyond naive keyword matching to provide qualitative fit badges, missing critical skill flags, concrete suggestions, and recruiter outreach drafts.
 
-### 3. The Reliability Challenge: Unpredictable LLM Outputs
-LLMs often hallucinate formatting or return conversational fluff (e.g., "Here is your analysis..."), which breaks UI rendering.
-**The Solution:** I utilized strict JSON schema prompting. By heavily optimizing the system prompt, I forced the LLMs to return a highly structured JSON response. I then built robust parsing logic that catches and recovers from malformed arrays or missing fields (like defaulting missing `strengths` arrays) before rendering the UI components.
+---
+
+## 🛠️ Key Technical Challenges & Solutions
+
+Designing a client-side AI browser extension required tackling several non-trivial engineering constraints:
+
+### 1. Client-Side PII Sanitization & Transparency
+* **Challenge:** Preventing sensitive personal data (full name, phone numbers, email addresses, personal links) from leaking to third-party LLM providers.
+* **Solution:** Developed an in-browser Regex-based scrubbing pipeline (`ai-analyzer.js`). Before any payload leaves the client, the extension parses the resume text, detects contact patterns, and dynamically infers and redacts the candidate's name from header blocks. Users can inspect the exact sanitized prompt payload in real time via an interactive modal before dispatch.
+
+### 2. Zero-Cost, BYOK (Bring-Your-Own-Key) Architecture
+* **Challenge:** Avoiding costly backend server infrastructure and recurring subscription paywalls for users.
+* **Solution:** Implemented a decoupled, serverless client model using Chrome's secure `chrome.storage` API. Integrated high-throughput, free-tier LLM endpoints (**Groq / Llama 3** and **Nvidia NIM**). The extension executes requests directly from the client, eliminating API middleman latency and backend operating expenses.
+
+### 3. Structured JSON Enforcement & Resilient Parsing
+* **Challenge:** LLM output drift, conversational prefixing, or invalid JSON structures causing client UI rendering crashes.
+* **Solution:** Engineered strict system prompts enforcing structured JSON schemas. Paired this with a resilient parsing wrapper that validates schema signatures, sanitizes raw string responses, and gracefully injects structural fallbacks (e.g., handling missing or malformed array fields) to guarantee UI stability.
 
 ---
 
 ## ✨ Key Features
 
-- **Instant Match Scoring:** Instantly calculates a 0-100 score on how well your resume matches the job description on the screen.
-- **AI-Powered Deep Insights:** Receive a "PRIORITISE", "CONSIDER", or "PASS" verdict, along with an honest take on your candidacy.
-- **Actionable Suggestions:** Generates specific tips on how to improve your resume for the role, complete with UI skill chips.
-- **Cold Email Generator:** Automatically generates a tailored cold email referencing the exact skills that match the role.
-- **Privacy First:** Automated guardrails instantly strip PII before sending data to the cloud.
-- **Premium UI:** Features dark mode support and a lightweight CSS 3D Cube animation for processing states.
+- 🎯 **Instant Match Rating:** Computes a normalized 0–100 alignment score comparing candidate qualifications against job requirements.
+- 💡 **Qualitative AI Verdicts:** Generates executive fit ratings (`PRIORITISE`, `CONSIDER`, or `PASS`) accompanied by a concise synthesis of strengths and gaps.
+- 🛠️ **Skill Gap Breakdown:** Distinguishes between required and preferred skills, rendering interactive UI chips for missing competencies.
+- ✉️ **Targeted Cold Email Generator:** Auto-drafts tailored outreach messages to recruiters, highlighting candidate alignment for the specific role.
+- 🛡️ **Privacy Auditability:** On-demand transparency tool enabling users to review sanitized prompt data prior to API execution.
+- 🎨 **Modern SPA Experience:** Polished Material Design interface featuring dark mode support and custom CSS steam-train animation for processing states.
 
 ---
 
-## 🏗️ Project Architecture
+## 🏗️ System Architecture
 
 ```mermaid
 graph TD
-    UI[Popup UI] --> Controller[popup.js]
+    UI[Popup UI SPA] --> Controller[popup.js]
     Controller --> LocalStorage[(storage.js)]
     
-    Controller -- "Scrape Page" --> ContentScript[content.js]
-    ContentScript -- "Job Text" --> Controller
+    Controller -- "Scrape Page Text" --> ContentScript[content.js]
+    ContentScript -- "Extract Job Posting" --> Controller
     
-    Controller -- "Static Mode" --> StaticMatcher[matcher.js]
-    Controller -- "AI Mode" --> AIAnalyzer[ai-analyzer.js]
+    Controller -- "Deterministic Engine" --> StaticMatcher[matcher.js]
+    Controller -- "LLM Semantic Engine" --> AIAnalyzer[ai-analyzer.js]
     
-    AIAnalyzer -- "1. Strip PII locally" --> Sanitizer[Regex Scrubber]
-    Sanitizer -- "2. Send Payload" --> LLMAPI[Groq / Nvidia NIM API]
+    AIAnalyzer -- "1. Local PII Scrubber" --> Sanitizer[Regex Pipeline]
+    Sanitizer -- "2. Transmit Sanitized Prompt" --> LLMAPI[Groq / Nvidia NIM API]
 ```
 
-### File Breakdown
-- **`manifest.json`**: Extension configuration (Manifest V3), strict host permissions for APIs.
-- **`popup.html` & `popup.css`**: The Single Page Application UI, built with modern CSS and Material Design tokens.
-- **`popup.js` & `ui-utils.js`**: Core UI controllers, DOM manipulation, and state management.
-- **`content.js`**: Scrapes the job description from the active tab.
-- **`ai-analyzer.js`**: Orchestrates PII stripping, prompt engineering, JSON parsing, and LLM communication.
-- **`storage.js`**: Async wrapper for Chrome local storage API.
+### Modular Codebase Structure
+- **`manifest.json`**: Chrome Extension Manifest V3 configuration defining active tab permissions and API host permissions.
+- **`popup.html` & `popup.css`**: Responsive Single Page Application UI built with modern CSS custom properties and dynamic layout tokens.
+- **`popup.js` & `ui-utils.js`**: Core UI state manager, event dispatchers, view router, and DOM controllers.
+- **`content.js`**: DOM scraper extracting raw job description text from target web pages.
+- **`ai-analyzer.js`**: PII sanitization engine, prompt template builder, schema validator, and LLM API client.
+- **`matcher.js`**: Local deterministic keyword and n-gram similarity engine for offline scoring.
+- **`storage.js`**: Promise-based wrapper around `chrome.storage.local`.
 
 ---
 
 ## 🚀 Installation & Setup
 
-Because this extension is a portfolio project, it is installed locally via Developer Mode.
+### 1. Load Extension in Developer Mode
+1. Clone or download this repository locally:
+   ```bash
+   git clone https://github.com/sivaprasathm93/resume-match-score.git
+   ```
+2. Navigate to `chrome://extensions/` in Google Chrome.
+3. Enable **Developer mode** using the toggle switch in the top-right corner.
+4. Click **Load unpacked** and select the root directory of the cloned repository.
+5. Pin **Resume Match Score** to your browser toolbar for quick access.
 
-1. **Download the code:** Clone or download this repository.
-2. **Open Chrome Extensions:** Go to `chrome://extensions/` in your browser.
-3. **Enable Developer Mode:** Toggle the switch in the top right corner.
-4. **Load the Extension:** Click **Load unpacked** and select the `resume-match-score` folder.
-5. **Pin it:** Click the puzzle piece icon 🧩 and pin the extension!
-
-### ⚙️ Setting up the AI (Free)
-1. Open the extension and toggle to **AI Mode**.
-2. Click the **Settings Gear (⚙)**.
-3. Select your provider (e.g., **Nvidia NIM API** or **Groq**).
-4. Click the link to generate a free API key, paste it into the extension, and click **Test**.
+### 2. Configure Free AI Credentials
+1. Click the extension icon and toggle to **AI Mode**.
+2. Click the **Settings (⚙)** icon.
+3. Choose your preferred AI Provider (**Groq** or **Nvidia NIM**).
+4. Obtain a free API key using the provided quick-link, paste it into the field, and click **Test & Save**.
 
 ---
 
 ## 🤝 Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/sivaprasathm93/resume-match-score/issues).
 
 ## 📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
 <div align="center">
-  <b>⭐ If you find this extension helpful, please consider giving it a star on <a href="https://github.com/sivaprasathm93/resume-match-score">GitHub</a>! ⭐</b><br><br>
-  Built with ❤️ by <b>Sivaprasath Mohandass</b>
+  <b>⭐ If you find this project useful, please consider giving it a star on <a href="https://github.com/sivaprasathm93/resume-match-score">GitHub</a>! ⭐</b><br><br>
+  Designed & Built with ❤️ by <b>Sivaprasath Mohandass</b>
 </div>
+
