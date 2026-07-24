@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume Match Score</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Google+Sans+Text:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ───── Header ───── -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-icon">
+          <img src="icons/icon48.png" alt="Logo" class="app-logo-img">
+        </div>
+        <div class="header-text">
+          <h1>Resume Match</h1>
+          <p class="header-subtitle">Skill Analysis</p>
+        </div>
+      </div>
+      <div class="mode-toggle" id="mode-toggle">
+        <span class="mode-label" id="mode-label-static">Static</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="ai-mode-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="mode-label mode-label-ai" id="mode-label-ai">AI</span>
+        <button id="btn-ai-settings" class="icon-btn-sm" title="AI Settings" style="display:none;" aria-label="AI Settings">
+          <span class="material-icons-round">tune</span>
+        </button>
+      </div>
+      <div class="header-actions">
+        <button id="btn-fluff-words" class="header-pill-btn" title="Manage ignored fluff words" style="display:none;">
+          <span class="material-icons-round">filter_alt</span>
+          Fluff Words
+        </button>
+        <button id="btn-manage-resume" class="header-pill-btn" title="Upload a different resume" style="display:none;">
+          <span class="material-icons-round">upload_file</span>
+          Re-upload
+        </button>
+        <button id="btn-settings" class="header-pill-btn" title="Clear saved resume data" style="display:none;">
+          <span class="material-icons-round">delete_outline</span>
+          Clear
+        </button>
+      </div>
+    </header>
+
+    <!-- Fluff Words Modal -->
+    <div id="fluff-modal" class="modal" style="display:none;">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <h3>Ignored Fluff Words</h3>
+        <p class="modal-sub">Words added here will be ignored during skill matching & scoring.</p>
+        <div class="fluff-add-row">
+          <input type="text" id="fluff-input" placeholder="Add word (e.g., leadership, teamwork)..." />
+          <button id="btn-add-fluff" class="btn-primary btn-sm">Add</button>
+        </div>
+        <div id="fluff-tags-container" class="fluff-tags-grid"></div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button id="btn-fluff-close" class="btn-primary">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cold Email Modal -->
+    <div id="email-modal" class="modal" style="display:none;">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <h3>Cold Email Draft</h3>
+        <p class="modal-sub">Personalised recruiter outreach email with your matching skills.</p>
+        <label class="modal-label">Subject Line:</label>
+        <input type="text" id="email-subject-input" class="modal-input" />
+        <label class="modal-label" style="margin-top:10px;">Email Body:</label>
+        <textarea id="email-body-textarea" rows="8" class="modal-textarea"></textarea>
+        <div class="modal-actions" style="margin-top:14px;">
+          <button id="btn-copy-email" class="btn-primary">
+            <span class="material-icons-round">content_copy</span> Copy Email
+          </button>
+          <button id="btn-email-close" class="btn-text">Close</button>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- Support Page Modal (Add Domain to Allowed Patterns) -->
+    <div id="support-page-modal" class="modal" style="display:none;">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <h3><span class="material-icons-round" style="vertical-align:middle;margin-right:6px;color:var(--primary);">language</span>Support This Page</h3>
+        <p class="modal-sub">This site is not in the default supported job boards list.</p>
+
+        <div style="background:var(--surface-container-high);padding:10px 12px;border-radius:var(--radius-sm);margin:12px 0;">
+          <p style="font-size:11px;color:var(--on-surface-variant);margin-bottom:2px;">Current Page URL:</p>
+          <p id="support-page-url" style="font-size:12px;font-weight:600;word-break:break-all;color:var(--on-surface);"></p>
+        </div>
+
+        <label class="modal-label">Domain or URL pattern to allow:</label>
+        <input type="text" id="support-pattern-input" class="modal-input" placeholder="e.g. indeed.com" />
+        <p style="font-size:11px;color:var(--on-surface-variant);margin-top:4px;">Adding this pattern enables Resume Match Score to run on this site.</p>
+
+        <div id="custom-patterns-section" style="display:none;margin-top:12px;">
+          <label class="modal-label">Custom Supported Sites:</label>
+          <div id="custom-patterns-list" class="fluff-tags-grid" style="margin-top:4px;"></div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:16px;">
+          <button id="btn-support-page-confirm" class="btn-primary">
+            <span class="material-icons-round">add_circle_outline</span>
+            Support This Page & Analyze
+          </button>
+          <button id="btn-support-page-close" class="btn-text">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LLM Shared Data Viewer Modal -->
+    <div id="llm-data-modal" class="modal" style="display:none;">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content llm-data-modal-content">
+        <div class="modal-header-row">
+          <h3>
+            <span class="material-icons-round" style="vertical-align:middle;margin-right:6px;color:var(--primary);">data_object</span>
+            Data Shared with LLM
+          </h3>
+          <span id="llm-provider-tag" class="llm-provider-tag">Groq API</span>
+        </div>
+        <p class="modal-sub">This is the exact prompt and sanitized resume text sent to the cloud AI provider.</p>
+
+        <div class="llm-data-tabs">
+          <button class="llm-tab-btn active" data-llmtab="resume">Sanitized Resume</button>
+          <button class="llm-tab-btn" data-llmtab="job">Job Posting</button>
+          <button class="llm-tab-btn" data-llmtab="full">Full Raw Prompt</button>
+        </div>
+
+        <div class="llm-tab-panels">
+          <div class="llm-panel active" id="llm-panel-resume">
+            <div class="llm-info-pill">
+              <span class="material-icons-round">shield</span>
+              <span>Personal details & candidate names were replaced with <code>[REMOVED]</code> tokens.</span>
+            </div>
+            <pre id="llm-resume-preview" class="llm-code-block"></pre>
+          </div>
+          <div class="llm-panel" id="llm-panel-job" style="display:none;">
+            <pre id="llm-job-preview" class="llm-code-block"></pre>
+          </div>
+          <div class="llm-panel" id="llm-panel-full" style="display:none;">
+            <pre id="llm-full-preview" class="llm-code-block"></pre>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:16px;">
+          <button id="btn-copy-llm-data" class="btn-secondary">
+            <span class="material-icons-round">content_copy</span> Copy Prompt
+          </button>
+          <button id="btn-llm-data-close" class="btn-primary">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Settings Modal -->
+    <div id="ai-settings-modal" class="modal" style="display:none;">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content ai-settings-content">
+        <h3><span class="material-icons-round" style="vertical-align:middle;margin-right:6px;font-size:20px;">auto_awesome</span>AI Settings</h3>
+
+        <!-- Provider Selector -->
+        <label class="modal-label" style="margin-top:4px;">AI Provider</label>
+        <select id="ai-provider-select" class="modal-select">
+          <option value="groq">Groq API — Free Tier</option>
+          <option value="nvidia">Nvidia NIM API — Free Tier</option>
+        </select>
+
+        <!-- How to get API key steps -->
+        <div id="ai-key-steps" class="ai-key-steps">
+          <div id="steps-groq" class="ai-steps-block">
+            <label class="modal-label" style="margin-top:12px;">How to get your free Groq API key</label>
+            <ol class="ai-steps-list">
+              <li>Go to <a href="https://console.groq.com/keys" target="_blank" class="ai-link">console.groq.com/keys</a></li>
+              <li>Sign up with email or GitHub (no credit card)</li>
+              <li>Click <strong>"Create API Key"</strong></li>
+              <li>Copy the key and paste below</li>
+            </ol>
+          </div>
+          <div id="steps-nvidia" class="ai-steps-block" style="display:none;">
+            <label class="modal-label" style="margin-top:12px;">How to get your free Nvidia API key</label>
+            <ol class="ai-steps-list">
+              <li>Go to <a href="https://build.nvidia.com/" target="_blank" class="ai-link">build.nvidia.com</a></li>
+              <li>Sign in with email, Google, etc.</li>
+              <li>Click on your profile -> <strong>"Get API Key"</strong></li>
+              <li>Click <strong>"Generate Key"</strong>, copy it and paste below</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- API Key Input (always visible now) -->
+        <div id="ai-key-section">
+          <label class="modal-label" style="margin-top:10px;">API Key</label>
+          <div class="ai-key-row">
+            <input type="password" id="ai-api-key-input" class="modal-input" placeholder="Paste your API key..." />
+            <button id="btn-test-key" class="btn-primary btn-sm">Test</button>
+          </div>
+          <div id="ai-key-status" class="ai-key-status"></div>
+          <div class="ai-privacy-notice">
+            <span class="material-icons-round" style="font-size:14px;color:var(--success);">verified_user</span>
+            <span><strong>Privacy Notice:</strong> Personal details (name, email, phone, links) are automatically stripped before sending your resume to the LLM. Your API key is stored locally and never shared.</span>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:16px;">
+          <button id="btn-ai-settings-save" class="btn-primary">Save & Close</button>
+          <button id="btn-ai-settings-close" class="btn-text">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───── View: Upload Resume ───── -->
+    <section id="view-upload" class="view active">
+      <div class="upload-hero">
+        <div class="upload-illustration">
+          <div class="upload-circle">
+            <span class="material-icons-round">upload_file</span>
+          </div>
+          <div class="upload-pulse"></div>
+        </div>
+        <h2>Upload Your Resume</h2>
+        <p class="upload-desc">Drop your PDF here or click to browse.<br>Your data stays 100% private — personal details are automatically stripped before LLM analysis.</p>
+      </div>
+
+      <div id="drop-zone" class="drop-zone">
+        <input type="file" id="file-input" accept=".pdf,.txt,.doc,.docx" hidden>
+        <span class="material-icons-round drop-icon">cloud_upload</span>
+        <p class="drop-text">Drag & drop resume here</p>
+        <p class="drop-hint">PDF, TXT supported</p>
+      </div>
+
+      <div class="divider-text"><span>or</span></div>
+
+      <button id="btn-paste" class="btn-secondary">
+        <span class="material-icons-round">content_paste</span>
+        Paste resume text
+      </button>
+
+      <!-- Paste modal -->
+      <div id="paste-modal" class="modal" style="display:none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <h3>Paste Your Resume</h3>
+          <textarea id="paste-textarea" placeholder="Paste your full resume text here..." rows="10"></textarea>
+          <div class="modal-actions">
+            <button id="btn-paste-cancel" class="btn-text">Cancel</button>
+            <button id="btn-paste-submit" class="btn-primary">Analyze Resume</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───── View: Processing ───── -->
+    <section id="view-processing" class="view" style="display:none;">
+      <div class="processing-container">
+        <div class="train-loader">
+          <div class="smoke smoke-1"></div>
+          <div class="smoke smoke-2"></div>
+          <div class="smoke smoke-3"></div>
+          <div class="train-body">
+            <div class="cabin"></div>
+            <div class="boiler"></div>
+            <div class="chimney"></div>
+            <div class="wheel wheel-1">
+              <div class="spoke"></div>
+              <div class="spoke"></div>
+            </div>
+            <div class="wheel wheel-2">
+              <div class="spoke"></div>
+              <div class="spoke"></div>
+            </div>
+            <div class="coupling-rod"></div>
+          </div>
+          <div class="track"></div>
+        </div>
+        <h3 id="processing-text">Reading your resume...</h3>
+        <p class="processing-sub" id="processing-sub">Extracting skills and experience</p>
+      </div>
+    </section>
+
+    <!-- ───── View: Dashboard (Resume Ready) ───── -->
+    <section id="view-dashboard" class="view" style="display:none;">
+      <div class="resume-status-card">
+        <div class="resume-status-icon">
+          <span class="material-icons-round">check_circle</span>
+        </div>
+        <div class="resume-status-info">
+          <h3>Resume Loaded</h3>
+          <p id="resume-skill-count">0 skills detected</p>
+        </div>
+        <button id="btn-view-skills" class="btn-chip">
+          <span class="material-icons-round">visibility</span>
+          View
+        </button>
+      </div>
+
+      <!-- Detected skills flyout -->
+      <div id="skills-flyout" class="skills-flyout" style="display:none;">
+        <div class="flyout-header">
+          <h4>Your Skills</h4>
+          <button id="btn-close-flyout" class="icon-btn-sm" aria-label="Close skills flyout">
+            <span class="material-icons-round">close</span>
+          </button>
+        </div>
+        <div id="resume-skills-list" class="skills-grid"></div>
+      </div>
+
+      <div class="analyze-cta">
+        <div class="cta-illustration">
+          <span class="material-icons-round">work</span>
+        </div>
+        <h2>Ready to Analyze</h2>
+        <p>Navigate to any job posting and click below to see how your skills match.</p>
+        <button id="btn-analyze" class="btn-primary btn-large">
+          <span class="material-icons-round">search</span>
+          Analyze This Page
+        </button>
+      </div>
+    </section>
+
+    <!-- ───── View: Results ───── -->
+    <section id="view-results" class="view" style="display:none;">
+
+      <!-- Privacy Badge for AI mode -->
+      <div id="ai-privacy-badge" class="ai-privacy-badge" style="display:none;">
+        <div class="privacy-badge-left">
+          <span class="material-icons-round">verified_user</span>
+          <span>Personal details (name, email, phone, links) were stripped before sending to LLM</span>
+        </div>
+        <button id="btn-view-llm-data" class="btn-llm-data" title="View exact data sent to LLM">
+          <span class="material-icons-round">analytics</span>
+          View Shared Data
+        </button>
+      </div>
+
+      <!-- Verdict Banner -->
+      <div class="verdict-card" id="verdict-card">
+        <div class="verdict-header">
+          <div class="verdict-badge" id="verdict-badge">
+            <span class="material-icons-round" id="verdict-icon">stars</span>
+            <span id="verdict-title">PRIORITIZE</span>
+          </div>
+          <div class="score-mini-gauge">
+            <span class="score-number" id="score-number">0</span>
+            <span class="score-percent">%</span>
+          </div>
+        </div>
+        <p class="verdict-text" id="verdict-text"></p>
+        <div class="score-meta">
+          <div class="meta-item">
+            <span class="meta-value" id="meta-matched">0</span>
+            <span class="meta-label">Matched</span>
+          </div>
+          <div class="meta-divider"></div>
+          <div class="meta-item">
+            <span class="meta-value" id="meta-missing">0</span>
+            <span class="meta-label">Missing</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Row: Cold Email Recruiter -->
+      <div class="action-bar-row" style="margin-bottom:14px;">
+        <button id="btn-cold-email" class="btn-secondary btn-full" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span class="material-icons-round">mail_outline</span>
+          Draft Cold Email to Recruiter
+        </button>
+      </div>
+
+      <!-- Job Title -->
+      <div class="job-title-bar" id="job-title-bar" style="display:none;">
+        <span class="material-icons-round">work_outline</span>
+        <span id="job-title-text"></span>
+      </div>
+
+      <!-- Strengths & Concerns Card -->
+      <div class="tal-insights-card">
+        <div class="insight-section insight-strengths">
+          <div class="insight-title">
+            <span class="material-icons-round">thumb_up</span>
+            Key Strengths
+          </div>
+          <div id="tal-strengths-list" class="insight-list"></div>
+        </div>
+        <div class="insight-divider"></div>
+        <div class="insight-section insight-concerns">
+          <div class="insight-title">
+            <span class="material-icons-round">report_problem</span>
+            Potential Gaps
+          </div>
+          <div id="tal-concerns-list" class="insight-list"></div>
+        </div>
+      </div>
+
+      <!-- Skills Sections -->
+      <div class="results-tabs">
+        <button class="tab-btn active" data-tab="matched">
+          <span class="material-icons-round">check_circle</span>
+          Matched
+          <span class="tab-count" id="tab-count-matched">0</span>
+        </button>
+        <button class="tab-btn" data-tab="missing">
+          <span class="material-icons-round">cancel</span>
+          Missing
+          <span class="tab-count" id="tab-count-missing">0</span>
+        </button>
+      </div>
+
+      <div class="tab-panels">
+        <div class="tab-panel active" id="panel-matched">
+          <div id="matched-skills" class="skill-chips"></div>
+          <p class="empty-state" id="empty-matched" style="display:none;">No matching skills found</p>
+        </div>
+        <div class="tab-panel" id="panel-missing">
+          <div id="missing-skills" class="skill-chips"></div>
+          <p class="empty-state" id="empty-missing" style="display:none;">No missing skills — great match!</p>
+        </div>
+      </div>
+
+      <!-- Suggestions -->
+      <div class="suggestions-card" id="suggestions-card">
+        <div class="suggestions-header">
+          <span class="material-icons-round">tips_and_updates</span>
+          <h3>Boost Your Resume</h3>
+        </div>
+        <div id="suggestions-list" class="suggestions-list"></div>
+      </div>
+
+      <!-- Analyze Another -->
+      <button id="btn-analyze-again" class="btn-primary btn-large" style="margin-top:16px;">
+        <span class="material-icons-round">refresh</span>
+        Analyze Another Page
+      </button>
+
+    </section>
+
+    <!-- ───── Toast Notification ───── -->
+    <div id="toast" class="toast" style="display:none;">
+      <span class="material-icons-round toast-icon" id="toast-icon">info</span>
+      <span id="toast-message"></span>
+    </div>
+
+  </div>
+
+  <script src="storage.js"></script>
+  <script src="ui-utils.js"></script>
+  <script src="ai-analyzer.js"></script>
+  <script src="matcher.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
