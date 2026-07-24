@@ -69,13 +69,9 @@ Designing a client-side AI browser extension required tackling several non-trivi
 | **LinkedIn** | `linkedin.com` | Global Job Listings & InMail posting pages |
 | **Workday** | `myworkdayjobs.com` | Enterprise Career Portals (Fortune 500) |
 | **Greenhouse** | `greenhouse.io` | Modern Tech & Startup ATS Portals |
-| **Naukri** | `naukri.com` | India & Regional Enterprise Job Listings |
+| **Naukri** | `naukri.com` | Enterprise & Regional Job Listings |
 | **Rippling** | `rippling.com` | HR & Workforce Management Portals |
 | **RippleHire** | `ripplehire.com` | Enterprise Talent & Referral Platforms |
-| **Indeed & Glassdoor** | `indeed.com` / `glassdoor.com` | Global Job Search Aggregators |
-| **ZipRecruiter & Monster** | `ziprecruiter.com` / `monster.com` | Direct Employer & Recruiter Listings |
-| **Wellfound (AngelList)** | `wellfound.com` | Tech & Venture-Backed Startup Listings |
-| **Google Jobs & Dice** | Various | Tech & Search Engine Aggregators |
 
 > 💡 **Custom Portal Whitelisting:** Navigating a unique company career site or unlisted ATS? Simply click **"Support This Page"** in the extension popup to instantly add the domain to your local allowed patterns list!
 

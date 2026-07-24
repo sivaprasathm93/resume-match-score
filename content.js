@@ -13,35 +13,11 @@
     '.jobs-box__html-content',
     '.description__text',
     '.jobs-description-content__text',
-    // Indeed
-    '#jobDescriptionText',
-    '.jobsearch-jobDescriptionText',
-    '.jobsearch-JobInfoHeader-title-container',
-    // Glassdoor
-    '.jobDescriptionContent',
-    '#JobDescriptionContainer',
-    '.desc',
     // Naukri
     '.job-desc',
     '.jd-container',
     '.styles_JDC__dang-inner-html__h0K4t',
     '.styles_job-desc-container__txpYf',
-    // Monster
-    '.job-description',
-    '#JobDescription',
-    // ZipRecruiter
-    '.job_description',
-    '.jobDescriptionSection',
-    // AngelList / Wellfound
-    '.listing-container',
-    // Dice
-    '#jobdescSec',
-    // SimplyHired
-    '.viewjob-jobDescription',
-    // CareerBuilder
-    '.jdp-job-description-card',
-    // Google Jobs
-    '.HBvzbc',
     // Generic selectors
     '[data-testid="job-description"]',
     '[data-automation="jobDescription"]',
