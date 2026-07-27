@@ -9,10 +9,7 @@
    */
   const JOB_SELECTORS = [
     // LinkedIn
-    '.jobs-description__content',
-    '.jobs-box__html-content',
-    '.description__text',
-    '.jobs-description-content__text',
+    '[id^="JobDetails_AboutTheJob"]',
     // Naukri
     '.job-desc',
     '.jd-container',
