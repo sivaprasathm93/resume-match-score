@@ -126,6 +126,30 @@ async function promptNvidiaAPI(systemPrompt, userPrompt, apiKey) {
 // 4. RESPONSE PARSING & NORMALIZATION
 // ─────────────────────────────────────────────
 
+function assertAnalysisResult(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("AI response payload must be a JSON object.");
+  }
+  const score = parseInt(data.score, 10);
+  if (isNaN(score) || score < 0 || score > 100) {
+    throw new Error("AI response must contain a valid integer score between 0 and 100.");
+  }
+  const listFields = [
+    "matchedRequired",
+    "matchedPreferred",
+    "missingRequired",
+    "missingPreferred",
+    "strengths",
+    "concerns",
+    "suggestions",
+  ];
+  for (const field of listFields) {
+    if (data[field] !== undefined && !Array.isArray(data[field])) {
+      throw new Error(`AI response field "${field}" must be an array.`);
+    }
+  }
+}
+
 /**
  * Parse the AI response JSON and normalize it into the matchResult shape
  * that popup.js / renderResults() expects.
@@ -148,6 +172,8 @@ function parseAIResponse(rawText) {
     console.error("Failed to parse AI JSON response:", cleaned);
     throw new Error("INVALID_JSON");
   }
+
+  assertAnalysisResult(data);
 
   const score = Math.min(100, Math.max(0, parseInt(data.score, 10) || 0));
   const score10 = (score / 10).toFixed(score % 10 === 0 ? 0 : 1);
@@ -202,21 +228,39 @@ function parseAIResponse(rawText) {
     missingPreferredList.map((s) => String(s).toLowerCase()),
   );
 
-  // Register any AI-detected skills not in SKILLS_DATABASE so getSkillInfo works
+  // Enforce disjoint skill sets in code:
+  // If a skill is in matchedRequired, remove it from preferred or missing lists.
+  for (const skill of matchedRequired) {
+    matchedPreferred.delete(skill);
+    missingRequired.delete(skill);
+    missingPreferred.delete(skill);
+  }
+  for (const skill of matchedPreferred) {
+    missingRequired.delete(skill);
+    missingPreferred.delete(skill);
+  }
+  for (const skill of missingRequired) {
+    missingPreferred.delete(skill);
+  }
+
+  // Register any AI-detected skills without mutating SKILLS_DATABASE permanently
   const allAISkills = [
     ...matchedRequiredList,
     ...matchedPreferredList,
     ...missingRequiredList,
     ...missingPreferredList,
   ];
-  for (const skill of allAISkills) {
-    const key = String(skill).toLowerCase();
-    if (!SKILLS_DATABASE[key]) {
-      SKILLS_DATABASE[key] = {
-        display: String(skill),
-        category: "AI Detected",
-        aliases: [],
-      };
+  if (typeof window !== "undefined") {
+    window._aiDetectedSkills = window._aiDetectedSkills || {};
+    for (const skill of allAISkills) {
+      const key = String(skill).toLowerCase();
+      if (!SKILLS_DATABASE[key] && !window._aiDetectedSkills[key]) {
+        window._aiDetectedSkills[key] = {
+          display: String(skill),
+          category: "AI Detected",
+          aliases: [],
+        };
+      }
     }
   }
 
@@ -336,36 +380,42 @@ function stripPII(text) {
     "[EMAIL REMOVED]",
   );
 
-  // 2. Remove Phone numbers
+  // 2. Remove Phone numbers (US and international formats)
   sanitized = sanitized.replace(
-    /(?:\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g,
+    /(?:\+|00)?\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}(?:[\s.-]?\d{2,4})?/g,
     "[PHONE REMOVED]",
   );
 
-  // 3. Remove URLs & links (LinkedIn, GitHub, Portfolios, etc)
+  // 3. Remove URLs & links (HTTP, HTTPS, protocol-less domains)
   sanitized = sanitized.replace(
-    /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g,
+    /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi,
     "[URL REMOVED]",
   );
   sanitized = sanitized.replace(
-    /\b(linkedin\.com|github\.com)\/[a-zA-Z0-9_-]+\/?/gi,
-    "[LINK REMOVED]",
+    /\b(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.(?:com|org|net|edu|gov|io|co|me|dev|app|uk|ca|in|de|fr|au)\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi,
+    "[URL REMOVED]",
   );
 
-  // 4. Remove explicit Name fields ("Name: John Doe", "Full Name: Jane Smith")
+  // 4. Remove Street Addresses
+  sanitized = sanitized.replace(
+    /\b\d{1,5}\s+[A-Za-z0-9\s.,]+(?:street|st|avenue|ave|road|rd|boulevard|blvd|lane|ln|drive|dr|way|court|ct|plaza|square|sq|highway|hwy|parkway|pkwy)\b/gi,
+    "[ADDRESS REMOVED]",
+  );
+
+  // 5. Remove explicit Name fields ("Name: John Doe", "Full Name: Jane Smith")
   sanitized = sanitized.replace(
     /\b(?:full\s+)?name\s*:\s*([A-Za-z]+(?:\s+[A-Za-z]+){1,3})/gi,
     "Name: [NAME REMOVED]",
   );
 
-  // 5. Detect and remove header name at top of resume
+  // 6. Conservative header name detection at top of resume
   try {
     const lines = sanitized.split("\n");
     let firstLineIdx = -1;
 
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < lines.length && i < 10; i++) {
       const textLeft = lines[i]
-        .replace(/\[(EMAIL|PHONE|URL|LINK|NAME) REMOVED\]/gi, "")
+        .replace(/\[(EMAIL|PHONE|URL|LINK|NAME|ADDRESS) REMOVED\]/gi, "")
         .trim();
       if (
         textLeft.length > 0 &&
@@ -379,11 +429,20 @@ function stripPII(text) {
 
     if (firstLineIdx !== -1) {
       const textLeft = lines[firstLineIdx]
-        .replace(/\[(EMAIL|PHONE|URL|LINK|NAME) REMOVED\]/gi, "")
+        .replace(/\[(EMAIL|PHONE|URL|LINK|NAME|ADDRESS) REMOVED\]/gi, "")
         .trim();
       const namePart = textLeft.split(/\||-|•|,/)[0].trim();
+      const words = namePart.split(/\s+/);
 
-      if (namePart.length > 0 && namePart.length < 60) {
+      // Only treat as a name if 1-4 words, no numbers, and no job vocabulary
+      if (
+        words.length >= 1 &&
+        words.length <= 4 &&
+        !/\d/.test(namePart) &&
+        !/\b(engineer|developer|manager|specialist|analyst|consultant|architect|director|lead|designer|officer|administrator|summary|experience|education|skills|profile|objective|projects|work|history)\b/i.test(namePart) &&
+        namePart.length > 0 &&
+        namePart.length < 50
+      ) {
         lines[firstLineIdx] = lines[firstLineIdx].replace(
           namePart,
           "[NAME REMOVED]",
@@ -454,9 +513,6 @@ async function analyzeWithAI(resumeText, jobText, options = {}) {
   return result;
 }
 
-/**
- * Test if an API key works by sending a minimal prompt.
- */
 async function testAPIKey(provider, apiKey) {
   try {
     const testPrompt = 'Respond in JSON format with exactly: {"status":"ok"}';
@@ -474,10 +530,30 @@ async function testAPIKey(provider, apiKey) {
         testPrompt,
         apiKey,
       );
+    } else {
+      throw new Error("Unknown AI provider selected.");
+    }
+
+    if (!response) {
+      throw new Error("Received empty response from API.");
+    }
+
+    let parsed;
+    try {
+      const clean = response.replace(/```json\s*|\s*```/g, "").trim();
+      parsed = JSON.parse(clean);
+    } catch (_) {
+      throw new Error("API returned invalid JSON format.");
+    }
+
+    if (!parsed || parsed.status !== "ok") {
+      throw new Error("API responded but verification payload failed.");
     }
 
     return { success: true };
   } catch (e) {
-    return { success: false, error: e.message };
+    const msg = e.message || "Unknown error";
+    const cleanMsg = msg.length > 120 ? msg.substring(0, 120) + "..." : msg;
+    return { success: false, error: cleanMsg };
   }
 }

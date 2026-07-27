@@ -224,6 +224,12 @@ function bindEvents() {
 // FILE HANDLING & PARSING
 // ─────────────────────────────────────────────
 async function handleFileUpload(file) {
+  if (file.size > 10 * 1024 * 1024) { // 10MB limit
+    showToast('File size exceeds 10MB limit.', 'error');
+    showView('view-upload');
+    return;
+  }
+
   const ext = file.name.split('.').pop().toLowerCase();
   showProcessing('Reading your resume...', `Extracting text from ${file.name}`);
 
@@ -234,20 +240,17 @@ async function handleFileUpload(file) {
     } else if (ext === 'txt') {
       text = await file.text();
     } else if (ext === 'doc' || ext === 'docx') {
-      text = await file.text();
-      if (!text || text.length < 20) {
-        showToast('Please convert your .doc/.docx to PDF or paste the text directly.', 'warning');
-        showView('view-upload');
-        return;
-      }
+      showToast('Binary .doc/.docx files are not directly readable. Please save/convert to PDF or TXT, or use Paste Text.', 'warning');
+      showView('view-upload');
+      return;
     } else {
       showToast('Unsupported file type. Please use PDF or TXT.', 'error');
       showView('view-upload');
       return;
     }
 
-    if (!text || text.trim().length < 20) {
-      showToast('Could not extract text. Please paste your resume instead.', 'warning');
+    if (!text || text.trim().length < 50) {
+      showToast('Could not extract sufficient readable text (at least 50 chars). Please paste your resume instead.', 'warning');
       showView('view-upload');
       return;
     }
@@ -266,6 +269,9 @@ async function parsePDF(file) {
     const pdfjsLib = await import(chrome.runtime.getURL('lib/pdf.min.mjs'));
     pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('lib/pdf.worker.min.mjs');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    if (pdf.numPages > 15) {
+      throw new Error('PDF exceeds 15 page maximum limit.');
+    }
     let fullText = '';
 
     for (let i = 1; i <= pdf.numPages; i++) {
@@ -275,25 +281,15 @@ async function parsePDF(file) {
     }
     return fullText;
   } catch (e) {
-    console.warn('PDF.js fallback mode:', e);
+    console.error('PDF.js parsing error:', e);
+    throw new Error('Failed to parse PDF document. Please try pasting your resume text.');
   }
-
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const raw = reader.result;
-      const text = raw.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
-      resolve(text);
-    };
-    reader.onerror = () => resolve('');
-    reader.readAsText(file);
-  });
 }
 
 function handlePasteSubmit() {
   const text = DOM.pasteTextarea ? DOM.pasteTextarea.value.trim() : '';
-  if (!text || text.length < 20) {
-    showToast('Please paste a full resume text (at least 20 characters).', 'warning');
+  if (!text || text.length < 50) {
+    showToast('Please paste a full resume text (at least 50 characters).', 'warning');
     return;
   }
   closeModal('paste-modal');
@@ -813,6 +809,21 @@ function copyColdEmail() {
 // ─────────────────────────────────────────────
 // AI MODE TOGGLE & SETTINGS
 // ─────────────────────────────────────────────
+async function reanalyzeWithCurrentData() {
+  if (!cachedPageData) return;
+  if (DOM.aiModeToggle) DOM.aiModeToggle.disabled = true;
+  showProcessing('Re-analyzing...', aiModeEnabled ? 'Running AI semantic analysis...' : 'Running static keyword matching...');
+  try {
+    if (aiModeEnabled) {
+      await analyzePageWithAI(cachedPageData);
+    } else {
+      await analyzePageStatic(cachedPageData);
+    }
+  } finally {
+    if (DOM.aiModeToggle) DOM.aiModeToggle.disabled = false;
+  }
+}
+
 function handleAIToggle(e) {
   aiModeEnabled = e.target.checked;
   syncAIToggleUI();
@@ -960,9 +971,13 @@ function computeUrlHash(url, text = '') {
     } else {
       identity = 'manual|' + (text ? text.slice(0, 100).trim() : '');
     }
+    const resFingerprint = resumeText ? `${resumeText.length}_${resumeText.slice(0, 40).trim()}` : 'no_res';
+    const modeStr = aiModeEnabled ? `ai_${aiProvider}` : 'static';
+    const compoundStr = `${identity}|${resFingerprint}|${modeStr}|v2`;
+
     let hash = 0;
-    for (let i = 0; i < identity.length; i++) {
-      hash = ((hash << 5) - hash) + identity.charCodeAt(i);
+    for (let i = 0; i < compoundStr.length; i++) {
+      hash = ((hash << 5) - hash) + compoundStr.charCodeAt(i);
       hash |= 0;
     }
     return 'job_' + Math.abs(hash).toString(36);

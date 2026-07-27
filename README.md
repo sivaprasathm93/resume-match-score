@@ -33,15 +33,15 @@ Designing a client-side AI browser extension required tackling several non-trivi
 
 ### 1. Client-Side PII Sanitization & Full Payload Transparency
 * **Challenge:** Preventing sensitive personal data (full name, phone numbers, email addresses, personal links) from leaking to third-party LLM providers while giving users 100% visibility.
-* **Solution:** Developed an in-browser Regex-based scrubbing pipeline (`ai-analyzer.js`). Before any payload leaves the client, the extension parses the resume text, detects contact patterns, and dynamically infers and redacts the candidate's name from header blocks. Additionally, built an interactive **"View Shared Data" Modal** allowing candidates to audit the exact sanitized prompt, resume snippet, and job text sent to the LLM.
+* **Solution:** Developed an in-browser best-effort Regex-based scrubbing pipeline (`ai-analyzer.js`). Before any payload leaves the client, the extension parses the resume text, detects contact patterns (emails, phone numbers, street addresses, URLs), and conservatively infers and redacts the candidate's name from header blocks. Additionally, built an interactive **"View Shared Data" Modal** allowing candidates to audit the exact sanitized prompt, resume snippet, and job text sent to the LLM.
 
 ### 2. Universal Job Board Adaptability ("Support This Page")
 * **Challenge:** Job postings exist across hundreds of ATS platforms and company career portals, making static hardcoded domain lists insufficient.
-* **Solution:** Engineered a dynamic URL pattern manager. If a candidate visits an unlisted niche job portal or custom career site, they can click **"Support This Page"** to instantly whitelist the domain into their `chrome.storage` allowed patterns list, giving them immediate single-click parsing capability anywhere on the web.
+* **Solution:** Engineered a dynamic URL pattern manager. If a candidate visits an unlisted niche job portal or custom career site, they can click **"Support This Page"** to instantly whitelist the domain into their `chrome.storage.local` allowed patterns list, giving them immediate single-click parsing capability anywhere on the web.
 
 ### 3. Zero-Cost, BYOK (Bring-Your-Own-Key) Architecture
 * **Challenge:** Avoiding costly backend server infrastructure and recurring subscription paywalls for users.
-* **Solution:** Implemented a decoupled, serverless client model using Chrome's secure `chrome.storage` API. Integrated high-throughput, free-tier LLM endpoints (**Groq / Llama 3** and **Nvidia NIM**). The extension executes requests directly from the client, eliminating API middleman latency and backend operating expenses.
+* **Solution:** Implemented a decoupled, serverless client model using local extension storage (`chrome.storage.local`). Integrated high-throughput, free-tier LLM endpoints (**Groq / Llama 3** and **Nvidia NIM**). The extension executes requests directly from the client, eliminating API middleman latency and backend operating expenses.
 
 ### 4. Structured JSON Enforcement & Resilient Parsing
 * **Challenge:** LLM output drift, conversational prefixing, or invalid JSON structures causing client UI rendering crashes.

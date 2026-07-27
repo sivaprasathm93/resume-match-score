@@ -374,10 +374,18 @@ function categorizeJobRequirements(jobText) {
       currentSection = 'preferred';
     }
 
+    // Determine effective section for this specific line (line-level override)
+    let effectiveSection = currentSection;
+    if (currentSection === 'required' && PREFERRED_INDICATORS.some(ind => trimmed.includes(ind))) {
+      effectiveSection = 'preferred';
+    } else if (currentSection === 'preferred' && REQUIRED_INDICATORS.some(ind => trimmed.includes(ind))) {
+      effectiveSection = 'required';
+    }
+
     // Extract skills from this line
     const lineSkills = extractSkills(trimmed);
     for (const skill of lineSkills) {
-      if (currentSection === 'preferred') {
+      if (effectiveSection === 'preferred') {
         preferred.add(skill);
       } else {
         required.add(skill);
@@ -419,12 +427,20 @@ function estimateUserExperience(resumeText) {
   if (!resumeText) return 0;
   
   const currentYear = new Date().getFullYear();
-  // match years between 1980 and current year + 1
-  const yearRegex = /\b(19[8-9]\d|20[0-2]\d)\b/g;
+  let textToSearch = resumeText;
+  
+  // Try to isolate Experience / Work History / Employment section header
+  const expMatch = resumeText.match(/(?:^|\n)\s*(?:work\s+)?(?:experience|employment|work\s+history|professional\s+background)\b[\s\S]*?(?=(?:^|\n)\s*(?:education|skills|certifications|projects|summary|languages|awards|references)\b|$)/i);
+  if (expMatch && expMatch[0].length > 20) {
+    textToSearch = expMatch[0];
+  }
+
+  // match years between 1970 and current year
+  const yearRegex = /\b(19[7-9]\d|20[0-2]\d)\b/g;
   let matches;
   let minYear = currentYear;
   
-  while ((matches = yearRegex.exec(resumeText)) !== null) {
+  while ((matches = yearRegex.exec(textToSearch)) !== null) {
     const year = parseInt(matches[1], 10);
     if (year <= currentYear && year < minYear) {
       minYear = year;
@@ -432,7 +448,8 @@ function estimateUserExperience(resumeText) {
   }
   
   if (minYear === currentYear) return 0;
-  return currentYear - minYear;
+  const exp = currentYear - minYear;
+  return exp <= 30 ? exp : 0; // Cap at 30 years to ignore birth years or copyright notices
 }
 
 
@@ -479,6 +496,23 @@ function calculateMatchScore(resumeSkills, jobReqs) {
     }
   }
 
+  // Filter bonus skills to only those matching a category required/preferred by the job
+  const jobCategories = new Set();
+  for (const skill of allSkills) {
+    const info = getSkillInfo(skill);
+    if (info.category && info.category !== 'Other' && info.category !== 'AI Detected') {
+      jobCategories.add(info.category);
+    }
+  }
+
+  const relevantBonusSkills = new Set();
+  for (const skill of bonusSkills) {
+    const info = getSkillInfo(skill);
+    if (jobCategories.size === 0 || jobCategories.has(info.category)) {
+      relevantBonusSkills.add(skill);
+    }
+  }
+
   // Scoring weights
   const REQUIRED_WEIGHT = 3;
   const PREFERRED_WEIGHT = 1;
@@ -497,7 +531,7 @@ function calculateMatchScore(resumeSkills, jobReqs) {
       matchedPreferred,
       missingRequired,
       missingPreferred,
-      bonusSkills,
+      bonusSkills: relevantBonusSkills,
       yearsMap,
       totalJobSkills: allSkills.size,
       totalResumeSkills: resumeSkills.size,
@@ -510,8 +544,8 @@ function calculateMatchScore(resumeSkills, jobReqs) {
 
   let score = Math.round((matchedWeight / totalWeight) * 100);
 
-  // Small bonus for having extra relevant skills (max +5)
-  const bonusPoints = Math.min(5, Math.floor(bonusSkills.size * 0.5));
+  // Small bonus for having extra relevant skills (max +3)
+  const bonusPoints = Math.min(3, Math.floor(relevantBonusSkills.size * 0.5));
   score = Math.min(100, score + bonusPoints);
 
   const requiredPct = required.size > 0 ? Math.round((matchedRequired.size / required.size) * 100) : 100;
@@ -697,7 +731,11 @@ function generateSuggestions(matchResult) {
  * Gets the display info for a skill key.
  */
 function getSkillInfo(skillKey) {
-  return SKILLS_DATABASE[skillKey] || { display: skillKey, category: 'Other', aliases: [] };
+  if (SKILLS_DATABASE[skillKey]) return SKILLS_DATABASE[skillKey];
+  if (typeof window !== 'undefined' && window._aiDetectedSkills && window._aiDetectedSkills[skillKey]) {
+    return window._aiDetectedSkills[skillKey];
+  }
+  return { display: skillKey, category: 'Other', aliases: [] };
 }
 
 /**
