@@ -64,6 +64,7 @@ Designing a client-side AI browser extension required tackling several non-trivi
 ## ✨ Key Features
 
 - 🎯 **Instant Match Rating & Breakdown:** Computes a normalized 0–100 alignment score and surfaces granular percentage splits for Required vs. Preferred skill alignment alongside bonus points.
+- 📜 **Analysis History & Deduplication:** Stores up to 25 past job analyses locally keyed by URL hash, enabling single-click review of past scores and automatic deduplication banners to avoid burning API calls.
 - ⚡ **Dual-Engine Resiliency & Graceful Fallback:** Automatically degrades to local offline static matching (`matcher.js`) if the cloud AI API encounters rate limits, quota exhaustion, or network dropouts—guaranteeing 100% availability.
 - 💡 **Deterministic Qualitative Verdicts:** Generates executive fit ratings (`PRIORITIZE`, `CONSIDER`, or `PASS`) computed deterministically from score thresholds to prevent LLM hallucination.
 - ✏️ **ATS-Optimized Bullet Rewrites:** AI proposes 1–2 concrete rewrites of actual candidate resume bullets in **CAR** *(Challenge-Action-Result)* and **XYZ** *(Accomplished X, measured by Y, by doing Z)* formats with one-click clipboard copying.

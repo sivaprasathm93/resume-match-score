@@ -38,6 +38,10 @@
       </div>
       <div class="header-actions">
 
+        <button id="btn-history" class="header-pill-btn" title="View past job match analyses" style="display:none;">
+          <span class="material-icons-round">history</span>
+          History
+        </button>
         <button id="btn-manage-resume" class="header-pill-btn" title="Upload a different resume" style="display:none;">
           <span class="material-icons-round">upload_file</span>
           Re-upload
@@ -332,6 +336,15 @@
         <span>Couldn't isolate the job posting cleanly — score may be noisy. Try pasting the JD manually.</span>
       </div>
 
+      <!-- Dedup Banner -->
+      <div id="dedup-banner" class="dedup-banner" style="display:none;">
+        <div class="dedup-content">
+          <span class="material-icons-round" style="color:var(--primary);">offline_bolt</span>
+          <span id="dedup-text">You already scored this posting (68/100, 3 days ago).</span>
+        </div>
+        <button id="btn-force-reanalyze" class="btn-text-sm" title="Re-run analysis now">Re-analyze</button>
+      </div>
+
       <!-- Verdict Banner -->
       <div class="verdict-card" id="verdict-card">
         <div class="verdict-header">
@@ -439,12 +452,33 @@
         <div id="suggestions-list" class="suggestions-list"></div>
       </div>
 
-      <!-- Analyze Another -->
+      <!-- Analyze Again -->
       <button id="btn-analyze-again" class="btn-primary btn-large" style="margin-top:16px;">
         <span class="material-icons-round">refresh</span>
-        Analyze Another Page
+        Analyze Page
       </button>
 
+    </section>
+
+    <!-- ───── View: History ───── -->
+    <section id="view-history" class="view" style="display:none;">
+      <div class="history-header">
+        <div class="history-title-group">
+          <span class="material-icons-round" style="color:var(--primary);">history</span>
+          <h2>Analysis History</h2>
+        </div>
+        <button id="btn-clear-history" class="btn-text-sm" title="Clear all history">Clear All</button>
+      </div>
+      <p class="history-subtitle">Past job analyses stored locally (capped at 25 entries).</p>
+      <div id="history-list" class="history-list"></div>
+      <div id="history-empty" class="empty-state" style="display:none;">
+        <span class="material-icons-round" style="font-size:36px; color:var(--outline); margin-bottom:8px;">history_toggle_off</span>
+        <p>No past job analyses yet. Score a job posting to start building history!</p>
+      </div>
+      <button id="btn-history-back" class="btn-secondary btn-large" style="margin-top:16px;">
+        <span class="material-icons-round">arrow_back</span>
+        Back to Dashboard
+      </button>
     </section>
 
     <!-- ───── Toast Notification ───── -->

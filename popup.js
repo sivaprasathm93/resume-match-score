@@ -28,6 +28,7 @@ const DEFAULT_ALLOWED_PATTERNS = [
   'naukri.com'
 ];
 let customAllowedPatterns = [];
+let analysisHistory = [];
 
 // DOM Reference Cache
 let DOM = {};
@@ -48,6 +49,7 @@ async function init() {
   aiProvider = stored.aiProvider;
   aiApiKeys = stored.aiApiKeys;
   customAllowedPatterns = stored.customAllowedPatterns;
+  analysisHistory = stored.analysisHistory || [];
 
   syncAIToggleUI();
 
@@ -96,6 +98,16 @@ function cacheDOM() {
     supportPatternInput: document.getElementById('support-pattern-input'),
     btnSupportConfirm: document.getElementById('btn-support-page-confirm'),
     btnSupportClose: document.getElementById('btn-support-page-close'),
+
+    // History & Dedup
+    btnHistory: document.getElementById('btn-history'),
+    btnClearHistory: document.getElementById('btn-clear-history'),
+    btnHistoryBack: document.getElementById('btn-history-back'),
+    historyList: document.getElementById('history-list'),
+    historyEmpty: document.getElementById('history-empty'),
+    dedupBanner: document.getElementById('dedup-banner'),
+    dedupText: document.getElementById('dedup-text'),
+    btnForceReanalyze: document.getElementById('btn-force-reanalyze'),
   };
 }
 
@@ -155,6 +167,29 @@ function bindEvents() {
     if (DOM.btnManageResume) DOM.btnManageResume.style.display = 'none';
   });
   DOM.btnSettings?.addEventListener('click', resetResume);
+
+  // History & Dedup events
+  DOM.btnHistory?.addEventListener('click', () => {
+    renderHistoryList();
+    showView('view-history');
+  });
+  DOM.btnClearHistory?.addEventListener('click', async () => {
+    analysisHistory = [];
+    await AppStorage.clearAnalysisHistory();
+    renderHistoryList();
+    showToast('Analysis history cleared', 'info');
+  });
+  DOM.btnHistoryBack?.addEventListener('click', () => {
+    if (currentResult) {
+      showView('view-results');
+    } else {
+      showView('view-dashboard');
+    }
+  });
+  DOM.btnForceReanalyze?.addEventListener('click', () => {
+    window._forceReanalyzeFlag = true;
+    analyzePage();
+  });
 
   // Results tabs switching
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -373,6 +408,28 @@ async function analyzePage() {
 
     cachedPageData = pageData;
 
+    const hash = computeUrlHash(pageData.url, pageData.text);
+    const cachedEntry = analysisHistory.find(h => h.hash === hash);
+
+    if (cachedEntry && cachedEntry.savedResult && !window._forceReanalyzeFlag) {
+      const timeAgoStr = getTimeAgo(cachedEntry.timestamp);
+      showToast(`Found cached analysis from ${timeAgoStr} (${cachedEntry.score}/100)`, 'success');
+      const res = {
+        ...cachedEntry.savedResult,
+        matchedRequired: new Set(cachedEntry.savedResult.matchedRequired || []),
+        matchedPreferred: new Set(cachedEntry.savedResult.matchedPreferred || []),
+        missingRequired: new Set(cachedEntry.savedResult.missingRequired || []),
+        missingPreferred: new Set(cachedEntry.savedResult.missingPreferred || []),
+        bonusSkills: new Set(cachedEntry.savedResult.bonusSkills || []),
+        isDedupHit: true,
+        dedupTimeStr: timeAgoStr,
+        dedupScore: cachedEntry.score
+      };
+      renderResults(res);
+      return;
+    }
+    window._forceReanalyzeFlag = false;
+
     if (aiModeEnabled) {
       await analyzePageWithAI(pageData);
     } else {
@@ -397,6 +454,7 @@ async function analyzePageStatic(pageData) {
   result.jobTitle = pageData.title;
   result.isNoisyExtraction = pageData.isNoisyExtraction;
   result.extractionTier = pageData.extractionTier;
+  recordAnalysisHistory(pageData, result);
   renderResults(result);
 }
 
@@ -414,6 +472,7 @@ async function analyzePageWithAI(pageData) {
     result.isNoisyExtraction = pageData.isNoisyExtraction;
     result.extractionTier = pageData.extractionTier;
     lastAIPayload = result.promptPayload || null;
+    recordAnalysisHistory(pageData, result);
     renderResults(result);
   } catch (err) {
     console.error('AI analysis error:', err);
@@ -574,6 +633,18 @@ function renderResults(result) {
   const noisyBanner = document.getElementById('noisy-extraction-banner');
   if (noisyBanner) {
     noisyBanner.style.display = result.isNoisyExtraction ? 'flex' : 'none';
+  }
+
+  if (DOM.dedupBanner) {
+    if (result.isDedupHit || result.isFromHistory) {
+      DOM.dedupBanner.style.display = 'flex';
+      const timeStr = result.dedupTimeStr || (result.historyTimestamp ? getTimeAgo(result.historyTimestamp) : 'earlier');
+      if (DOM.dedupText) {
+        DOM.dedupText.textContent = `You already scored this posting (${result.score}/100 • ${timeStr}).`;
+      }
+    } else {
+      DOM.dedupBanner.style.display = 'none';
+    }
   }
 
   const breakdownDiv = document.getElementById('score-breakdown');
@@ -869,5 +940,179 @@ function copyLLMData() {
     showToast('Prompt payload copied to clipboard!', 'success');
   }).catch(() => {
     showToast('Failed to copy to clipboard.', 'error');
+  });
+}
+
+// ─────────────────────────────────────────────
+// ANALYSIS HISTORY & DEDUP HELPERS
+// ─────────────────────────────────────────────
+function computeUrlHash(url, text = '') {
+  try {
+    let identity = url || '';
+    if (url && url.startsWith('http')) {
+      const u = new URL(url);
+      const jobId = u.searchParams.get('currentJobId') || u.searchParams.get('jobId') || u.searchParams.get('jk') || u.searchParams.get('gh_jid');
+      if (jobId) {
+        identity = u.hostname + '/job/' + jobId;
+      } else {
+        identity = u.hostname + u.pathname;
+      }
+    } else {
+      identity = 'manual|' + (text ? text.slice(0, 100).trim() : '');
+    }
+    let hash = 0;
+    for (let i = 0; i < identity.length; i++) {
+      hash = ((hash << 5) - hash) + identity.charCodeAt(i);
+      hash |= 0;
+    }
+    return 'job_' + Math.abs(hash).toString(36);
+  } catch (e) {
+    return 'job_' + Date.now().toString(36);
+  }
+}
+
+function getResumeProfileName(text) {
+  if (!text) return "Default Resume";
+  const lines = text.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length > 0 && lines[0].length < 40 && !lines[0].toLowerCase().includes("resume") && !lines[0].toLowerCase().includes("curriculum")) {
+    return lines[0];
+  }
+  return lines[0] ? lines[0].slice(0, 25) + "..." : "Default Resume";
+}
+
+function getTimeAgo(ts) {
+  if (!ts) return 'recently';
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 30) return `${days} days ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+function recordAnalysisHistory(pageData, result) {
+  if (!pageData || !result || result.isDedupHit || result.isFromHistory) return;
+  const url = pageData.url || '';
+  let domain = 'Local / Paste';
+  try {
+    if (url && url.startsWith('http')) domain = new URL(url).hostname.replace(/^www\./, '');
+  } catch (_) {}
+  const hash = computeUrlHash(url, pageData.text);
+  const resumeProfile = getResumeProfileName(resumeText);
+
+  analysisHistory = analysisHistory.filter(h => h.hash !== hash);
+
+  const entry = {
+    hash,
+    url,
+    jobTitle: result.jobTitle || pageData.title || 'Job Posting',
+    domain,
+    score: result.score || 0,
+    verdict: result.verdictBadge || result.grade || 'CONSIDER',
+    verdictColor: result.verdictColor || result.gradeColor || '#1a73e8',
+    timestamp: Date.now(),
+    resumeProfile,
+    isAIGenerated: result.isAIGenerated || false,
+    savedResult: {
+      ...result,
+      matchedRequired: Array.from(result.matchedRequired || []),
+      matchedPreferred: Array.from(result.matchedPreferred || []),
+      missingRequired: Array.from(result.missingRequired || []),
+      missingPreferred: Array.from(result.missingPreferred || []),
+      bonusSkills: Array.from(result.bonusSkills || []),
+      suggestions: result.suggestions || [],
+      bulletRewrites: result.bulletRewrites || [],
+      breakdown: result.breakdown || null
+    }
+  };
+
+  analysisHistory.unshift(entry);
+  if (analysisHistory.length > 25) {
+    analysisHistory = analysisHistory.slice(0, 25);
+  }
+  AppStorage.saveAnalysisHistory(analysisHistory);
+}
+
+function renderHistoryList() {
+  if (!DOM.historyList || !DOM.historyEmpty) return;
+
+  if (!analysisHistory || analysisHistory.length === 0) {
+    DOM.historyList.innerHTML = '';
+    DOM.historyList.style.display = 'none';
+    DOM.historyEmpty.style.display = 'block';
+    return;
+  }
+
+  DOM.historyEmpty.style.display = 'none';
+  DOM.historyList.style.display = 'flex';
+  DOM.historyList.innerHTML = '';
+
+  analysisHistory.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'history-card';
+    
+    const timeAgoStr = getTimeAgo(item.timestamp);
+    const badgeColor = item.verdictColor || '#1a73e8';
+
+    div.innerHTML = `
+      <div class="history-card-top">
+        <div class="history-job-info">
+          <h4 class="history-job-title" title="${escapeHtml(item.jobTitle)}">${escapeHtml(item.jobTitle)}</h4>
+          <span class="history-domain"><span class="material-icons-round" style="font-size:12px;">public</span> ${escapeHtml(item.domain)}</span>
+        </div>
+        <div class="history-score-badge" style="background: ${badgeColor};">
+          <span class="history-score-val">${item.score}%</span>
+          <span class="history-verdict-val">${escapeHtml(item.verdict)}</span>
+        </div>
+      </div>
+      <div class="history-card-bottom">
+        <span class="history-meta"><span class="material-icons-round" style="font-size:12px;">person</span> ${escapeHtml(item.resumeProfile || 'Default Resume')}</span>
+        <span class="history-meta"><span class="material-icons-round" style="font-size:12px;">schedule</span> ${timeAgoStr}</span>
+      </div>
+      <div class="history-card-actions">
+        <button class="btn-history-load" data-idx="${idx}">
+          <span class="material-icons-round" style="font-size:14px;">visibility</span> View Match
+        </button>
+        ${item.url && item.url.startsWith('http') ? `<a href="${escapeHtml(item.url)}" target="_blank" class="btn-history-link"><span class="material-icons-round" style="font-size:14px;">open_in_new</span> Job</a>` : ''}
+        <button class="btn-history-delete icon-btn-sm" data-idx="${idx}" title="Delete entry">
+          <span class="material-icons-round" style="font-size:16px;">delete_outline</span>
+        </button>
+      </div>
+    `;
+    DOM.historyList.appendChild(div);
+
+    const loadBtn = div.querySelector('.btn-history-load');
+    if (loadBtn && item.savedResult) {
+      loadBtn.addEventListener('click', () => {
+        currentResult = item.savedResult;
+        const res = {
+          ...item.savedResult,
+          matchedRequired: new Set(item.savedResult.matchedRequired || []),
+          matchedPreferred: new Set(item.savedResult.matchedPreferred || []),
+          missingRequired: new Set(item.savedResult.missingRequired || []),
+          missingPreferred: new Set(item.savedResult.missingPreferred || []),
+          bonusSkills: new Set(item.savedResult.bonusSkills || []),
+          isFromHistory: true,
+          historyTimestamp: item.timestamp
+        };
+        renderResults(res);
+        showToast(\`Loaded historical analysis from \${timeAgoStr}\`, 'info');
+      });
+    }
+
+    const delBtn = div.querySelector('.btn-history-delete');
+    if (delBtn) {
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        analysisHistory.splice(idx, 1);
+        AppStorage.saveAnalysisHistory(analysisHistory);
+        renderHistoryList();
+        showToast('History entry deleted', 'info');
+      });
+    }
   });
 }

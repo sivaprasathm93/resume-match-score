@@ -69,10 +69,12 @@ function showView(viewId) {
   // Update header buttons visibility based on view
   const btnManage = document.getElementById('btn-manage-resume');
   const btnSettings = document.getElementById('btn-settings');
+  const btnHistory = document.getElementById('btn-history');
   const isDashboardOrResults = viewId === 'view-dashboard' || viewId === 'view-results';
 
   if (btnManage) btnManage.style.display = isDashboardOrResults ? 'flex' : 'none';
   if (btnSettings) btnSettings.style.display = isDashboardOrResults ? 'flex' : 'none';
+  if (btnHistory) btnHistory.style.display = isDashboardOrResults ? 'flex' : 'none';
 }
 
 /**

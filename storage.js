@@ -13,7 +13,8 @@ const AppStorage = {
         'aiModeEnabled',
         'aiProvider',
         'aiApiKeys',
-        'customAllowedPatterns'
+        'customAllowedPatterns',
+        'analysisHistory'
       ]);
       return {
         resumeText: data.resumeText || '',
@@ -22,6 +23,7 @@ const AppStorage = {
         aiProvider: data.aiProvider || 'groq',
         aiApiKeys: data.aiApiKeys || { groq: '', nvidia: '' },
         customAllowedPatterns: Array.isArray(data.customAllowedPatterns) ? data.customAllowedPatterns : [],
+        analysisHistory: Array.isArray(data.analysisHistory) ? data.analysisHistory : [],
       };
     } catch (err) {
       console.warn('Storage load error:', err);
@@ -32,6 +34,7 @@ const AppStorage = {
         aiProvider: 'groq',
         aiApiKeys: { groq: '', nvidia: '' },
         customAllowedPatterns: [],
+        analysisHistory: [],
       };
     }
   },
@@ -89,6 +92,30 @@ const AppStorage = {
       await chrome.storage.local.set({ customAllowedPatterns });
     } catch (err) {
       console.warn('Error saving custom patterns:', err);
+    }
+  },
+
+  /**
+   * @param {Array<Object>} analysisHistory 
+   */
+  async saveAnalysisHistory(analysisHistory) {
+    try {
+      await chrome.storage.local.set({
+        analysisHistory: (analysisHistory || []).slice(0, 25)
+      });
+    } catch (err) {
+      console.warn('Error saving history:', err);
+    }
+  },
+
+  /**
+   * Clear analysis history from storage.
+   */
+  async clearAnalysisHistory() {
+    try {
+      await chrome.storage.local.set({ analysisHistory: [] });
+    } catch (err) {
+      console.warn('Error clearing history:', err);
     }
   },
 };
