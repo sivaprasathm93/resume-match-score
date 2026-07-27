@@ -14,6 +14,7 @@ When judging fit, give partial credit for transferable or adjacent skills instea
 Produce ONLY valid JSON — no markdown code fences, no commentary before or after — in this exact shape:
 {
   "score": <integer 0-100, overall fit>,
+  "scoreRationale": "<1 line breakdown or rationale, e.g. 'Required match: 80% • Preferred match: 50% • Strong experience alignment'>",
   "honestTake": "<1-2 sentence, direct summary of the fit>",
   "matchedRequired": [/* required job skills the resume evidences — specific names like "Python", "React" */],
   "matchedPreferred": [/* preferred/nice-to-have job skills the resume evidences */],
@@ -25,6 +26,9 @@ Produce ONLY valid JSON — no markdown code fences, no commentary before or aft
     {"icon": "🎯", "title": "<short title>", "description": "<one actionable step>", "priority": "high", "skills": [/* 1-3 related skills */]},
     {"icon": "⭐", "title": "<short title>", "description": "<one actionable step>", "priority": "medium", "skills": [/* 1-3 related skills */]}
   ],
+  "bulletRewrites": [
+    {"original": "<exact bullet from candidate resume>", "rewritten": "<rewritten bullet in CAR/XYZ format surfacing matched skills for this JD>", "reason": "<why this improves alignment with this role>"}
+  ],
   "coldEmailSubject": "Application for <exact role title from the job text>",
   "coldEmailBody": "Hi [Hiring Manager],\\n\\n<3-4 line email referencing 2-3 of the candidate's matched skills>\\n\\nBest regards,\\n[Your Name]"
 }
@@ -33,6 +37,7 @@ Guidelines:
 - Each of matchedRequired / matchedPreferred / missingRequired / missingPreferred: max 8 entries, specific skill or tool names only — never vague terms like "communication" or "team player".
 - A skill belongs in exactly one of the four skill lists. Never list the same skill as both matched and missing, and never repeat a skill across lists.
 - score reflects overall fit, weighting required skills higher than preferred, and incorporating the experience-level and transferable-skill judgment above — it is not a raw keyword ratio.
+- bulletRewrites: exactly 1-2 items proposing concrete rewrites of actual candidate resume bullets using CAR (Challenge-Action-Result) or XYZ (Accomplished X, measured by Y, by doing Z) format to highlight matched skills for this JD.
 - coldEmailBody is exactly one email, 3-4 lines, referencing only real matched skills — never invent a company name, hiring manager name, or metric that isn't in the source text.
 - Escape every newline inside JSON string values as \\n. Output nothing but the JSON object itself.`;
 
@@ -226,6 +231,25 @@ function parseAIResponse(rawText) {
     skills: Array.isArray(s?.skills) ? s.skills : [],
   }));
 
+  const bulletRewrites = (
+    Array.isArray(data.bulletRewrites) ? data.bulletRewrites : []
+  ).map((b) => ({
+    original: String(b?.original || ""),
+    rewritten: String(b?.rewritten || ""),
+    reason: String(b?.reason || ""),
+  })).filter(b => b.original && b.rewritten).slice(0, 2);
+
+  const reqTotal = matchedRequired.size + missingRequired.size;
+  const prefTotal = matchedPreferred.size + missingPreferred.size;
+  const requiredPct = reqTotal > 0 ? Math.round((matchedRequired.size / reqTotal) * 100) : 100;
+  const preferredPct = prefTotal > 0 ? Math.round((matchedPreferred.size / prefTotal) * 100) : 100;
+  const breakdown = {
+    requiredPct,
+    preferredPct,
+    bonusPoints: 0,
+    text: data.scoreRationale || `Required match: ${requiredPct}% • Preferred match: ${preferredPct}%`
+  };
+
   const gradeColor = verdictColor;
 
   return {
@@ -237,6 +261,7 @@ function parseAIResponse(rawText) {
     verdictBadge,
     verdictColor,
     verdictIcon,
+    breakdown,
     confidenceLabel:
       score >= 75
         ? "High Confidence"
@@ -278,6 +303,7 @@ function parseAIResponse(rawText) {
       missingPreferredList.length,
     totalResumeSkills: matchedRequiredList.length + matchedPreferredList.length,
     suggestions,
+    bulletRewrites,
     coldEmailSubject: data.coldEmailSubject || "Application for [Role Title]",
     coldEmailBody: data.coldEmailBody || "",
     resumeSkillsList: [...matchedRequiredList, ...matchedPreferredList].map(

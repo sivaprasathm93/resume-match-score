@@ -326,6 +326,12 @@
         </button>
       </div>
 
+      <!-- Noisy Extraction Banner -->
+      <div id="noisy-extraction-banner" class="noisy-extraction-banner" style="display:none;">
+        <span class="material-icons-round">warning_amber</span>
+        <span>Couldn't isolate the job posting cleanly — score may be noisy. Try pasting the JD manually.</span>
+      </div>
+
       <!-- Verdict Banner -->
       <div class="verdict-card" id="verdict-card">
         <div class="verdict-header">
@@ -339,6 +345,10 @@
           </div>
         </div>
         <p class="verdict-text" id="verdict-text"></p>
+        <div id="score-breakdown" class="score-breakdown" style="display:none;">
+          <span class="material-icons-round" style="font-size:14px; color:var(--text-secondary);">pie_chart</span>
+          <span id="score-breakdown-text"></span>
+        </div>
         <div class="score-meta">
           <div class="meta-item">
             <span class="meta-value" id="meta-matched">0</span>
@@ -397,6 +407,16 @@
           Missing
           <span class="tab-count" id="tab-count-missing">0</span>
         </button>
+      </div>
+
+      <!-- Bullet Rewrites -->
+      <div class="bullet-rewrites-card" id="bullet-rewrites-card" style="display:none;">
+        <div class="suggestions-header">
+          <span class="material-icons-round">auto_fix_high</span>
+          <h3>AI Resume Rewrites</h3>
+        </div>
+        <p class="rewrites-subtitle">Rewritten in CAR/XYZ format to highlight matched skills:</p>
+        <div id="bullet-rewrites-list" class="bullet-rewrites-list"></div>
       </div>
 
       <div class="tab-panels">

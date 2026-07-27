@@ -492,6 +492,7 @@ function calculateMatchScore(resumeSkills, jobReqs) {
       score: 0,
       grade: 'No Skills Found',
       gradeColor: 'gray',
+      breakdown: { requiredPct: 0, preferredPct: 0, bonusPoints: 0, text: 'No skills evaluated' },
       matchedRequired,
       matchedPreferred,
       missingRequired,
@@ -513,6 +514,15 @@ function calculateMatchScore(resumeSkills, jobReqs) {
   const bonusPoints = Math.min(5, Math.floor(bonusSkills.size * 0.5));
   score = Math.min(100, score + bonusPoints);
 
+  const requiredPct = required.size > 0 ? Math.round((matchedRequired.size / required.size) * 100) : 100;
+  const preferredPct = preferred.size > 0 ? Math.round((matchedPreferred.size / preferred.size) * 100) : 100;
+  const breakdown = {
+    requiredPct,
+    preferredPct,
+    bonusPoints,
+    text: `Required match: ${requiredPct}% • Preferred match: ${preferredPct}%${bonusPoints > 0 ? ` • +${bonusPoints} bonus` : ''}`
+  };
+
   // Determine grade
   let grade, gradeColor;
   if (score >= 81) {
@@ -533,6 +543,7 @@ function calculateMatchScore(resumeSkills, jobReqs) {
     score,
     grade,
     gradeColor,
+    breakdown,
     matchedRequired,
     matchedPreferred,
     missingRequired,
@@ -823,6 +834,7 @@ Best regards,
     coldEmailSubject,
     coldEmailBody,
     suggestions,
+    bulletRewrites: [],
     resumeSkillsList: [...resumeSkills].map(s => getSkillInfo(s)),
     jobTitle: '',
   };

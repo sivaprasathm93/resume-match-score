@@ -33,6 +33,8 @@
 
   let content = '';
   let title = document.title || '';
+  let extractionTier = 'specific';
+  let isNoisyExtraction = false;
 
   // Try each selector
   for (const selector of JOB_SELECTORS) {
@@ -57,12 +59,18 @@
       const text = el.innerText?.trim();
       if (text && text.length > 40) parts.push(text);
     });
-    if (parts.length) content = parts.join('\n\n');
+    if (parts.length) {
+      content = parts.join('\n\n');
+      extractionTier = 'candidates';
+      isNoisyExtraction = true;
+    }
   }
 
   // Final fallback: body text
   if (!content || content.length < 80) {
     content = document.body.innerText?.trim() || '';
+    extractionTier = 'body';
+    isNoisyExtraction = true;
   }
 
   // Also try to extract the job title from the page
@@ -90,5 +98,7 @@
     title: jobTitle || title,
     url: window.location.href,
     length: content.length,
+    extractionTier,
+    isNoisyExtraction,
   };
 })();

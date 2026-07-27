@@ -395,6 +395,8 @@ async function analyzePageStatic(pageData) {
 
   const result = analyzeMatch(resumeText, pageData.text);
   result.jobTitle = pageData.title;
+  result.isNoisyExtraction = pageData.isNoisyExtraction;
+  result.extractionTier = pageData.extractionTier;
   renderResults(result);
 }
 
@@ -409,6 +411,8 @@ async function analyzePageWithAI(pageData) {
 
     const result = await analyzeWithAI(resumeText, pageData.text, options);
     result.jobTitle = pageData.title;
+    result.isNoisyExtraction = pageData.isNoisyExtraction;
+    result.extractionTier = pageData.extractionTier;
     lastAIPayload = result.promptPayload || null;
     renderResults(result);
   } catch (err) {
@@ -567,7 +571,24 @@ function renderResults(result) {
   if (emptyMatched) emptyMatched.style.display = totalMatched === 0 ? 'block' : 'none';
   if (emptyMissing) emptyMissing.style.display = totalMissing === 0 ? 'block' : 'none';
 
+  const noisyBanner = document.getElementById('noisy-extraction-banner');
+  if (noisyBanner) {
+    noisyBanner.style.display = result.isNoisyExtraction ? 'flex' : 'none';
+  }
+
+  const breakdownDiv = document.getElementById('score-breakdown');
+  const breakdownTextEl = document.getElementById('score-breakdown-text');
+  if (breakdownDiv && breakdownTextEl) {
+    if (result.breakdown && result.breakdown.text) {
+      breakdownTextEl.textContent = result.breakdown.text;
+      breakdownDiv.style.display = 'flex';
+    } else {
+      breakdownDiv.style.display = 'none';
+    }
+  }
+
   renderSuggestions(suggestions || []);
+  renderBulletRewrites(result.bulletRewrites || []);
   switchTab('matched');
 }
 
@@ -638,6 +659,55 @@ function renderSuggestions(suggestions) {
       </div>
     `;
     container.appendChild(div);
+  });
+}
+
+function renderBulletRewrites(rewrites) {
+  const container = document.getElementById('bullet-rewrites-list');
+  const card = document.getElementById('bullet-rewrites-card');
+  if (!container || !card) return;
+
+  if (!rewrites || rewrites.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'block';
+  container.innerHTML = '';
+
+  rewrites.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'bullet-rewrite-item';
+    div.innerHTML = `
+      <div class="rewrite-section">
+        <div class="rewrite-label">
+          <span>Original Bullet</span>
+        </div>
+        <div class="rewrite-original-text">${escapeHtml(item.original)}</div>
+      </div>
+      <div class="rewrite-section" style="margin-top:4px;">
+        <div class="rewrite-label">
+          <span>ATS Optimized Rewrite</span>
+          <button class="btn-copy-rewrite" data-idx="${idx}" title="Copy rewritten bullet">
+            <span class="material-icons-round" style="font-size:14px;">content_copy</span> Copy
+          </button>
+        </div>
+        <div class="rewrite-new-text">${escapeHtml(item.rewritten)}</div>
+        ${item.reason ? `<div class="rewrite-reason">Why: ${escapeHtml(item.reason)}</div>` : ''}
+      </div>
+    `;
+    container.appendChild(div);
+
+    const copyBtn = div.querySelector('.btn-copy-rewrite');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(item.rewritten).then(() => {
+          showToast('Rewritten bullet copied to clipboard!', 'success');
+        }).catch(() => {
+          showToast('Failed to copy text.', 'error');
+        });
+      });
+    }
   });
 }
 
