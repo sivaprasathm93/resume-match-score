@@ -1100,7 +1100,7 @@ function renderHistoryList() {
           historyTimestamp: item.timestamp
         };
         renderResults(res);
-        showToast(\`Loaded historical analysis from \${timeAgoStr}\`, 'info');
+        showToast(`Loaded historical analysis from ${timeAgoStr}`, 'info');
       });
     }
 
