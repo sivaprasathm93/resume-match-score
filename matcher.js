@@ -299,9 +299,8 @@ for (const term of SORTED_TERMS) {
  * Extracts skills mentioned in the given text.
  * Returns a Set of skill keys (normalized).
  * @param {string} text
- * @param {Set<string>} [ignoredSkillsSet] - Lowercased skill keys/names to ignore
  */
-function extractSkills(text, ignoredSkillsSet = new Set()) {
+function extractSkills(text) {
   if (!text || typeof text !== 'string') return new Set();
 
   const normalizedText = text
@@ -318,14 +317,7 @@ function extractSkills(text, ignoredSkillsSet = new Set()) {
     const skillKey = LOOKUP.get(term);
     if (!skillKey || found.has(skillKey)) continue; // Already matched or invalid
 
-    // Check if skill or term is ignored by user
-    if (ignoredSkillsSet && ignoredSkillsSet.size > 0) {
-      const info = SKILLS_DATABASE[skillKey];
-      const displayLower = info ? info.display.toLowerCase() : skillKey;
-      if (ignoredSkillsSet.has(skillKey) || ignoredSkillsSet.has(term.toLowerCase()) || ignoredSkillsSet.has(displayLower)) {
-        continue; // Skip user-ignored fluff word
-      }
-    }
+
 
     // Use the pre-compiled RegExp from cache
     const pattern = TERM_REGEX_CACHE.get(term);
@@ -361,8 +353,8 @@ const PREFERRED_INDICATORS = [
  * Analyzes job text and categorizes extracted skills as 'required' or 'preferred'.
  * Returns { required: Set, preferred: Set, allSkills: Set, yearsMap: Map }
  */
-function categorizeJobRequirements(jobText, ignoredSkillsSet = new Set()) {
-  const allSkills = extractSkills(jobText, ignoredSkillsSet);
+function categorizeJobRequirements(jobText) {
+  const allSkills = extractSkills(jobText);
   const required = new Set();
   const preferred = new Set();
   const yearsMap = new Map(); // skill → years mentioned
@@ -383,7 +375,7 @@ function categorizeJobRequirements(jobText, ignoredSkillsSet = new Set()) {
     }
 
     // Extract skills from this line
-    const lineSkills = extractSkills(trimmed, ignoredSkillsSet);
+    const lineSkills = extractSkills(trimmed);
     for (const skill of lineSkills) {
       if (currentSection === 'preferred') {
         preferred.add(skill);
@@ -714,9 +706,9 @@ function groupByCategory(skillSet) {
  * Full analysis pipeline: takes resume text and job text, returns complete result.
  * Includes Tal-inspired Prioritize vs Pass verdict, strengths, and concerns.
  */
-function analyzeMatch(resumeText, jobText, ignoredSkillsSet = new Set()) {
-  const resumeSkills = extractSkills(resumeText, ignoredSkillsSet);
-  const jobReqs = categorizeJobRequirements(jobText, ignoredSkillsSet);
+function analyzeMatch(resumeText, jobText) {
+  const resumeSkills = extractSkills(resumeText);
+  const jobReqs = categorizeJobRequirements(jobText);
   const matchResult = calculateMatchScore(resumeSkills, jobReqs);
   const suggestions = generateSuggestions(matchResult);
 

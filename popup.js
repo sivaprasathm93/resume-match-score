@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', init);
 // ─────────────────────────────────────────────
 let resumeText = '';
 let resumeSkills = new Set();
-let ignoredSkills = new Set();
+
 let cachedPageData = null;
 let currentResult = null;
 
@@ -43,7 +43,7 @@ async function init() {
 
   resumeText = stored.resumeText;
   resumeSkills = new Set(stored.resumeSkills);
-  ignoredSkills = new Set(stored.ignoredSkills.map(s => s.toLowerCase()));
+
   aiModeEnabled = stored.aiModeEnabled;
   aiProvider = stored.aiProvider;
   aiApiKeys = stored.aiApiKeys;
@@ -73,7 +73,7 @@ function cacheDOM() {
     aiModeToggle: document.getElementById('ai-mode-toggle'),
     modeToggleDiv: document.getElementById('mode-toggle'),
     btnAISettings: document.getElementById('btn-ai-settings'),
-    btnFluffWords: document.getElementById('btn-fluff-words'),
+
     btnManageResume: document.getElementById('btn-manage-resume'),
     btnSettings: document.getElementById('btn-settings'),
 
@@ -139,17 +139,6 @@ function bindEvents() {
   DOM.btnPasteCancel?.addEventListener('click', () => closeModal('paste-modal'));
   DOM.btnPasteSubmit?.addEventListener('click', handlePasteSubmit);
 
-  // Fluff Words modal
-  DOM.btnFluffWords?.addEventListener('click', () => {
-    renderFluffModalTags();
-    openModal('fluff-modal');
-    document.getElementById('fluff-input')?.focus();
-  });
-  document.getElementById('btn-fluff-close')?.addEventListener('click', () => closeModal('fluff-modal'));
-  document.getElementById('btn-add-fluff')?.addEventListener('click', handleAddFluffInput);
-  document.getElementById('fluff-input')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') handleAddFluffInput();
-  });
 
   // Cold Email modal
   document.getElementById('btn-cold-email')?.addEventListener('click', openColdEmailModal);
@@ -279,7 +268,7 @@ function handlePasteSubmit() {
 
 function processResumeText(text) {
   resumeText = text;
-  resumeSkills = extractSkills(resumeText, ignoredSkills);
+  resumeSkills = extractSkills(resumeText);
 
   if (resumeSkills.size === 0) {
     showToast('No standard skills detected. Try pasting a more detailed resume.', 'warning');
@@ -404,7 +393,7 @@ async function analyzePageStatic(pageData) {
   showProcessing('Analyzing match...', 'Comparing skills');
   await sleep(400);
 
-  const result = analyzeMatch(resumeText, pageData.text, ignoredSkills);
+  const result = analyzeMatch(resumeText, pageData.text);
   result.jobTitle = pageData.title;
   renderResults(result);
 }
@@ -486,7 +475,7 @@ function renderCustomPatternsList() {
 
   customAllowedPatterns.forEach(pattern => {
     const chip = document.createElement('div');
-    chip.className = 'fluff-tag';
+    chip.className = 'removable-tag';
     chip.innerHTML = `
       <span>${escapeHtml(pattern)}</span>
       <button class="remove-tag-btn" title="Remove site">
@@ -653,66 +642,6 @@ function renderSuggestions(suggestions) {
 }
 
 
-
-// ─────────────────────────────────────────────
-// FLUFF WORDS & COLD EMAIL MODALS
-// ─────────────────────────────────────────────
-function renderFluffModalTags() {
-  const container = document.getElementById('fluff-tags-container');
-  if (!container) return;
-  container.innerHTML = '';
-
-  if (ignoredSkills.size === 0) {
-    container.innerHTML = '<p class="fluff-empty">No fluff words added yet.</p>';
-    return;
-  }
-
-  for (const word of ignoredSkills) {
-    const chip = document.createElement('div');
-    chip.className = 'fluff-tag';
-    chip.innerHTML = `
-      <span>${escapeHtml(word)}</span>
-      <button class="remove-tag-btn" title="Remove word">
-        <span class="material-icons-round">close</span>
-      </button>
-    `;
-    chip.querySelector('.remove-tag-btn').addEventListener('click', () => removeFluffWord(word));
-    container.appendChild(chip);
-  }
-}
-
-function handleAddFluffInput() {
-  const input = document.getElementById('fluff-input');
-  if (!input) return;
-  const word = input.value.trim().toLowerCase();
-  if (!word) return;
-
-  ignoredSkills.add(word);
-  input.value = '';
-  AppStorage.saveIgnoredSkills(ignoredSkills);
-  renderFluffModalTags();
-  showToast(`Added "${word}" to ignored fluff words.`, 'success');
-
-  if (cachedPageData && resumeText) reanalyzeWithCurrentData();
-}
-
-function removeFluffWord(word) {
-  ignoredSkills.delete(word);
-  AppStorage.saveIgnoredSkills(ignoredSkills);
-  renderFluffModalTags();
-  showToast(`Removed "${word}" from ignored words.`, 'info');
-
-  if (cachedPageData && resumeText) reanalyzeWithCurrentData();
-}
-
-function reanalyzeWithCurrentData() {
-  resumeSkills = extractSkills(resumeText, ignoredSkills);
-  if (aiModeEnabled) {
-    analyzePageWithAI(cachedPageData);
-  } else {
-    analyzePageStatic(cachedPageData);
-  }
-}
 
 function openColdEmailModal() {
   if (!currentResult) return;

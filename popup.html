@@ -37,10 +37,7 @@
         </button>
       </div>
       <div class="header-actions">
-        <button id="btn-fluff-words" class="header-pill-btn" title="Manage ignored fluff words" style="display:none;">
-          <span class="material-icons-round">filter_alt</span>
-          Fluff Words
-        </button>
+
         <button id="btn-manage-resume" class="header-pill-btn" title="Upload a different resume" style="display:none;">
           <span class="material-icons-round">upload_file</span>
           Re-upload
@@ -52,22 +49,6 @@
       </div>
     </header>
 
-    <!-- Fluff Words Modal -->
-    <div id="fluff-modal" class="modal" style="display:none;">
-      <div class="modal-backdrop"></div>
-      <div class="modal-content">
-        <h3>Ignored Fluff Words</h3>
-        <p class="modal-sub">Words added here will be ignored during skill matching & scoring.</p>
-        <div class="fluff-add-row">
-          <input type="text" id="fluff-input" placeholder="Add word (e.g., leadership, teamwork)..." />
-          <button id="btn-add-fluff" class="btn-primary btn-sm">Add</button>
-        </div>
-        <div id="fluff-tags-container" class="fluff-tags-grid"></div>
-        <div class="modal-actions" style="margin-top:16px;">
-          <button id="btn-fluff-close" class="btn-primary">Done</button>
-        </div>
-      </div>
-    </div>
 
     <!-- Cold Email Modal -->
     <div id="email-modal" class="modal" style="display:none;">
@@ -108,7 +89,7 @@
 
         <div id="custom-patterns-section" style="display:none;margin-top:12px;">
           <label class="modal-label">Custom Supported Sites:</label>
-          <div id="custom-patterns-list" class="fluff-tags-grid" style="margin-top:4px;"></div>
+          <div id="custom-patterns-list" class="removable-tags-grid" style="margin-top:4px;"></div>
         </div>
 
         <div class="modal-actions" style="margin-top:16px;">

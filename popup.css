@@ -1541,32 +1541,12 @@ html, body {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Fluff Words Modal */
+/* Removable Tags Grid (used for custom patterns) */
 .modal-sub {
   font-size: 12px;
   color: var(--on-surface-variant);
   margin-bottom: 14px;
   line-height: 1.4;
-}
-
-.fluff-add-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.fluff-add-row input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--outline);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-text);
-  font-size: 13px;
-  outline: none;
-}
-
-.fluff-add-row input:focus {
-  border-color: var(--primary);
 }
 
 .btn-sm {
@@ -1576,7 +1556,7 @@ html, body {
   width: auto;
 }
 
-.fluff-tags-grid {
+.removable-tags-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -1589,7 +1569,7 @@ html, body {
   min-height: 50px;
 }
 
-.fluff-tag-chip {
+.removable-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1601,7 +1581,7 @@ html, body {
   font-weight: 500;
 }
 
-.fluff-tag-remove {
+.remove-tag-btn {
   border: none;
   background: transparent;
   color: var(--error);
@@ -1617,7 +1597,7 @@ html, body {
   transition: background 0.15s;
 }
 
-.fluff-tag-remove:hover {
+.remove-tag-btn:hover {
   background: var(--error-container);
 }
 

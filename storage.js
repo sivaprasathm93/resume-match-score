@@ -10,7 +10,6 @@ const AppStorage = {
       const data = await chrome.storage.local.get([
         'resumeText',
         'resumeSkills',
-        'ignoredSkills',
         'aiModeEnabled',
         'aiProvider',
         'aiApiKeys',
@@ -19,7 +18,6 @@ const AppStorage = {
       return {
         resumeText: data.resumeText || '',
         resumeSkills: Array.isArray(data.resumeSkills) ? data.resumeSkills : [],
-        ignoredSkills: Array.isArray(data.ignoredSkills) ? data.ignoredSkills : [],
         aiModeEnabled: typeof data.aiModeEnabled === 'boolean' ? data.aiModeEnabled : false,
         aiProvider: data.aiProvider || 'groq',
         aiApiKeys: data.aiApiKeys || { groq: '', nvidia: '' },
@@ -30,7 +28,6 @@ const AppStorage = {
       return {
         resumeText: '',
         resumeSkills: [],
-        ignoredSkills: [],
         aiModeEnabled: false,
         aiProvider: 'groq',
         aiApiKeys: { groq: '', nvidia: '' },
@@ -65,18 +62,7 @@ const AppStorage = {
     }
   },
 
-  /**
-   * @param {Set<string>|Array<string>} ignoredSkills 
-   */
-  async saveIgnoredSkills(ignoredSkills) {
-    try {
-      await chrome.storage.local.set({
-        ignoredSkills: Array.from(ignoredSkills)
-      });
-    } catch (err) {
-      console.warn('Error saving ignored skills:', err);
-    }
-  },
+
 
   /**
    * @param {boolean} aiModeEnabled 

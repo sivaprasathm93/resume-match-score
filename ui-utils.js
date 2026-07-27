@@ -67,12 +67,10 @@ function showView(viewId) {
   });
 
   // Update header buttons visibility based on view
-  const btnFluff = document.getElementById('btn-fluff-words');
   const btnManage = document.getElementById('btn-manage-resume');
   const btnSettings = document.getElementById('btn-settings');
   const isDashboardOrResults = viewId === 'view-dashboard' || viewId === 'view-results';
 
-  if (btnFluff) btnFluff.style.display = isDashboardOrResults ? 'flex' : 'none';
   if (btnManage) btnManage.style.display = isDashboardOrResults ? 'flex' : 'none';
   if (btnSettings) btnSettings.style.display = isDashboardOrResults ? 'flex' : 'none';
 }

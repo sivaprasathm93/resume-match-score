@@ -62,7 +62,6 @@ Designing a client-side AI browser extension required tackling several non-trivi
 - 🌐 **Custom Job Board Whitelisting ("Support This Page"):** Empowers candidates to add any unsupported job site domain directly into their local allowed patterns list with one click.
 - 👁️ **Full LLM Payload Transparency:** Includes a dedicated **"View Shared Data"** modal displaying the exact sanitized prompt payload, prompt length, and LLM model name.
 - ✉️ **Targeted Cold Email Generator:** Auto-drafts tailored outreach messages to recruiters, highlighting candidate alignment for the specific role.
-- 🚫 **Fluff Word Management:** Custom excluded keyword list to prevent generic buzzwords (e.g., "teamwork", "leadership") from skewing skill scores.
 - 🎨 **Modern SPA Experience:** Polished Material Design interface featuring dark mode support and custom CSS steam-train animation for processing states.
 
 ---
@@ -110,7 +109,7 @@ graph TD
 - **`content.js`**: DOM scraper extracting raw job description text from target web pages.
 - **`ai-analyzer.js`**: PII sanitization engine, prompt template builder, schema validator, and LLM API client.
 - **`matcher.js`**: Local deterministic keyword and n-gram similarity engine for offline scoring.
-- **`storage.js`**: Promise-based wrapper around `chrome.storage.local` managing API keys, allowed domain patterns, and fluff word filters.
+- **`storage.js`**: Promise-based wrapper around `chrome.storage.local` managing API keys and allowed domain patterns.
 
 ---
 
