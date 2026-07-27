@@ -51,14 +51,24 @@ Designing a client-side AI browser extension required tackling several non-trivi
 * **Challenge:** External AI APIs can encounter rate limits (HTTP 429 quota exhaustion), network dropouts, or unconfigured API keys, which could disrupt the application lifecycle.
 * **Solution:** Built an automated dual-engine fallback pipeline. If an AI API request fails or throws a quota exception, the extension seamlessly falls back to the client-side deterministic matching engine (`matcher.js`). The user receives an instant offline score and skill breakdown without seeing broken UI errors or experiencing downtime.
 
+### 6. Deterministic Verdict Calculation & Symmetric Skill Categorization
+* **Challenge:** LLMs can occasionally return inconsistent qualitative badges (e.g., labeling a 55% fit as `PRIORITIZE`) or dump all matched competencies into a single bucket without distinguishing required from preferred skills.
+* **Solution:** Moved verdict badge determination (`PRIORITIZE`, `CONSIDER`, `PASS`) entirely out of the LLM's hands into code, computing it deterministically from the numeric score. Enforced schema symmetry across 4 distinct skill buckets (`matchedRequired`, `matchedPreferred`, `missingRequired`, `missingPreferred`), preventing skill repetition and ensuring accurate badge rendering in the UI.
+
+### 7. Noisy DOM Scraping Detection & Extraction Tiers
+* **Challenge:** When site-specific DOM selectors miss on unfamiliar career pages, fallback body text scrapers can silently ingest navigation menus, footers, and sidebar junk, skewing alignment scores.
+* **Solution:** Implemented tiered DOM extraction tracking (`'specific'`, `'candidates'`, `'body'`). When scraping falls back to general body text, the engine sets an `isNoisyExtraction` flag that triggers an inline visual warning in the UI, prompting the candidate to paste the JD manually for maximum precision.
+
 ---
 
 ## ✨ Key Features
 
-- 🎯 **Instant Match Rating:** Computes a normalized 0–100 alignment score comparing candidate qualifications against job requirements.
+- 🎯 **Instant Match Rating & Breakdown:** Computes a normalized 0–100 alignment score and surfaces granular percentage splits for Required vs. Preferred skill alignment alongside bonus points.
 - ⚡ **Dual-Engine Resiliency & Graceful Fallback:** Automatically degrades to local offline static matching (`matcher.js`) if the cloud AI API encounters rate limits, quota exhaustion, or network dropouts—guaranteeing 100% availability.
-- 💡 **Qualitative AI Verdicts:** Generates executive fit ratings (`PRIORITISE`, `CONSIDER`, or `PASS`) accompanied by a concise synthesis of strengths and gaps.
-- 🛠️ **Skill Gap Breakdown:** Distinguishes between required and preferred skills, rendering interactive UI chips for missing competencies.
+- 💡 **Deterministic Qualitative Verdicts:** Generates executive fit ratings (`PRIORITIZE`, `CONSIDER`, or `PASS`) computed deterministically from score thresholds to prevent LLM hallucination.
+- ✏️ **ATS-Optimized Bullet Rewrites:** AI proposes 1–2 concrete rewrites of actual candidate resume bullets in **CAR** *(Challenge-Action-Result)* and **XYZ** *(Accomplished X, measured by Y, by doing Z)* formats with one-click clipboard copying.
+- 🛠️ **Symmetric Skill Gap Breakdown:** Distinguishes cleanly between required and preferred skills across matched and missing tiers, rendering interactive UI chips.
+- ⚠️ **Low-Confidence Extraction Alert:** Automatically detects when DOM extraction falls back to noisy page sections and alerts the user in real time.
 - 🌐 **Custom Job Board Whitelisting ("Support This Page"):** Empowers candidates to add any unsupported job site domain directly into their local allowed patterns list with one click.
 - 👁️ **Full LLM Payload Transparency:** Includes a dedicated **"View Shared Data"** modal displaying the exact sanitized prompt payload, prompt length, and LLM model name.
 - ✉️ **Targeted Cold Email Generator:** Auto-drafts tailored outreach messages to recruiters, highlighting candidate alignment for the specific role.
@@ -104,11 +114,11 @@ graph TD
 
 ### Modular Codebase Structure
 - **`manifest.json`**: Chrome Extension Manifest V3 configuration defining active tab permissions and API host permissions.
-- **`popup.html` & `popup.css`**: Responsive Single Page Application UI built with modern CSS custom properties and dynamic layout tokens.
+- **`popup.html` & `popup.css`**: Responsive Single Page Application UI built with modern CSS custom properties, breakdown pills, rewrite cards, and dynamic layout tokens.
 - **`popup.js` & `ui-utils.js`**: Core UI state manager, event dispatchers, view router, modal controllers, and domain whitelisting logic.
-- **`content.js`**: DOM scraper extracting raw job description text from target web pages.
-- **`ai-analyzer.js`**: PII sanitization engine, prompt template builder, schema validator, and LLM API client.
-- **`matcher.js`**: Local deterministic keyword and n-gram similarity engine for offline scoring.
+- **`content.js`**: Tiered DOM scraper extracting raw job description text from target web pages with noisy extraction detection.
+- **`ai-analyzer.js`**: PII sanitization engine, prompt template builder (supporting CAR/XYZ bullet rewrites and transferable skills), schema validator, and LLM API client.
+- **`matcher.js`**: Local deterministic keyword similarity engine with 3x/1x weighted scoring and percentage breakdown calculations.
 - **`storage.js`**: Promise-based wrapper around `chrome.storage.local` managing API keys and allowed domain patterns.
 
 ---
