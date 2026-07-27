@@ -535,6 +535,11 @@ function calculateMatchScore(resumeSkills, jobReqs) {
       yearsMap,
       totalJobSkills: allSkills.size,
       totalResumeSkills: resumeSkills.size,
+      summaryRewrite: { original: "", rewritten: "", reason: "" },
+      skillsOrdering: [],
+      experienceRewrites: [],
+      suggestedKeywords: [],
+      tailoringChecklist: [],
     };
   }
 
@@ -573,6 +578,33 @@ function calculateMatchScore(resumeSkills, jobReqs) {
     gradeColor = '#d93025'; // Google Red
   }
 
+  const skillsOrdering = [
+    ...Array.from(matchedRequired),
+    ...Array.from(matchedPreferred),
+    ...Array.from(resumeSkills).filter(s => !matchedRequired.has(s) && !matchedPreferred.has(s))
+  ];
+
+  const suggestedKeywords = [
+    ...Array.from(missingRequired),
+    ...Array.from(missingPreferred)
+  ].slice(0, 6);
+
+  const tailoringChecklist = [];
+  let chkIdx = 1;
+  for (const s of matchedRequired) {
+    if (chkIdx <= 3) {
+      tailoringChecklist.push({ id: `chk_${chkIdx++}`, text: `Add ${s} to skills section or professional summary`, type: "skill_add", completed: false });
+    }
+  }
+  for (const s of missingRequired) {
+    if (chkIdx <= 5) {
+      tailoringChecklist.push({ id: `chk_${chkIdx++}`, text: `Add evidence or project achievement using ${s}`, type: "keyword", completed: false });
+    }
+  }
+  if (tailoringChecklist.length === 0) {
+    tailoringChecklist.push({ id: `chk_${chkIdx++}`, text: `Review professional summary for job alignment`, type: "summary", completed: false });
+  }
+
   return {
     score,
     grade,
@@ -586,6 +618,11 @@ function calculateMatchScore(resumeSkills, jobReqs) {
     yearsMap,
     totalJobSkills: allSkills.size,
     totalResumeSkills: resumeSkills.size,
+    summaryRewrite: { original: "", rewritten: "", reason: "" },
+    skillsOrdering,
+    experienceRewrites: [],
+    suggestedKeywords,
+    tailoringChecklist,
   };
 }
 

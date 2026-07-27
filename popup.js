@@ -218,6 +218,8 @@ function bindEvents() {
   document.querySelectorAll('.llm-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => switchLLMTab(btn.dataset.llmtab));
   });
+
+  setupTailoringEvents();
 }
 
 // ─────────────────────────────────────────────
@@ -1130,3 +1132,430 @@ function renderHistoryList() {
     }
   });
 }
+
+// ─────────────────────────────────────────────
+// RESUME TAILORING STUDIO CONTROLLER
+// ─────────────────────────────────────────────
+let tailoringState = {
+  checklist: [],
+  summary: { accepted: true },
+  skillsOrder: { accepted: true },
+  experience: {}
+};
+
+function setupTailoringEvents() {
+  document.getElementById('btn-open-tailoring')?.addEventListener('click', openTailoringStudio);
+  document.getElementById('btn-tailoring-back')?.addEventListener('click', () => showView('view-results'));
+  document.getElementById('btn-tailoring-return')?.addEventListener('click', () => showView('view-results'));
+  document.getElementById('btn-accept-all')?.addEventListener('click', () => handleBatchTailoring('accept'));
+  document.getElementById('btn-reject-all')?.addEventListener('click', () => handleBatchTailoring('reject'));
+  document.getElementById('btn-copy-tailored')?.addEventListener('click', copyAcceptedTailoring);
+
+  const exportBtn = document.getElementById('btn-export-dropdown');
+  exportBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const menu = document.getElementById('export-menu');
+    if (menu) menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+  });
+
+  document.addEventListener('click', () => {
+    const menu = document.getElementById('export-menu');
+    if (menu) menu.style.display = 'none';
+  });
+
+  document.querySelectorAll('.export-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      const fmt = e.currentTarget.getAttribute('data-format');
+      exportTailoredResume(fmt);
+    });
+  });
+
+  // Event delegation for Accept/Reject toggle buttons
+  const studioEl = document.getElementById('view-tailoring');
+  studioEl?.addEventListener('click', (e) => {
+    const toggleBtn = e.target.closest('.toggle-btn');
+    if (!toggleBtn) return;
+
+    const target = toggleBtn.getAttribute('data-target');
+    const action = toggleBtn.getAttribute('data-action');
+    const roleIdx = toggleBtn.getAttribute('data-role');
+    const bulletIdx = toggleBtn.getAttribute('data-bullet');
+
+    const accepted = action === 'accept';
+
+    if (target === 'summary') {
+      tailoringState.summary.accepted = accepted;
+    } else if (target === 'skillsOrder') {
+      tailoringState.skillsOrder.accepted = accepted;
+    } else if (target === 'bullet' && roleIdx !== null && bulletIdx !== null) {
+      if (!tailoringState.experience[roleIdx]) tailoringState.experience[roleIdx] = {};
+      tailoringState.experience[roleIdx][bulletIdx] = accepted;
+    }
+
+    // Update button styling
+    const toggleGroup = toggleBtn.parentElement;
+    toggleGroup.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    toggleBtn.classList.add('active');
+  });
+}
+
+function openTailoringStudio() {
+  if (!currentResult) {
+    showToast('No analysis result to tailor.', 'error');
+    return;
+  }
+  renderTailoringStudio(currentResult);
+  showView('view-tailoring');
+}
+
+function renderTailoringStudio(result) {
+  // 1. Initialize State
+  tailoringState.checklist = (result.tailoringChecklist || []).map(item => ({ ...item }));
+  tailoringState.summary = { accepted: true };
+  tailoringState.skillsOrder = { accepted: true };
+  tailoringState.experience = {};
+
+  const expRewrites = (result.experienceRewrites && result.experienceRewrites.length > 0)
+    ? result.experienceRewrites
+    : ((result.bulletRewrites && result.bulletRewrites.length > 0)
+        ? [{ role: "Key Experience", bullets: result.bulletRewrites }]
+        : []);
+
+  expRewrites.forEach((grp, rIdx) => {
+    tailoringState.experience[rIdx] = {};
+    (grp.bullets || []).forEach((_, bIdx) => {
+      tailoringState.experience[rIdx][bIdx] = true;
+    });
+  });
+
+  // 2. Render Subcomponents
+  renderTailoringChecklist();
+  updateTailoringProgress();
+  renderTailoringSummary(result.summaryRewrite);
+  renderTailoringSkillsOrder(result.skillsOrdering, result.suggestedKeywords);
+  renderTailoringExperience(expRewrites);
+}
+
+function renderTailoringChecklist() {
+  const container = document.getElementById('tailoring-checklist-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (tailoringState.checklist.length === 0) {
+    container.innerHTML = '<p style="font-size:12px; color:var(--on-surface-variant); padding:8px 0;">No specific checklist items generated.</p>';
+    return;
+  }
+
+  tailoringState.checklist.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = `checklist-item ${item.completed ? 'completed' : ''}`;
+    div.innerHTML = `
+      <input type="checkbox" class="checklist-checkbox" ${item.completed ? 'checked' : ''} aria-label="Checklist item">
+      <div class="checklist-content">
+        <span class="checklist-text">${escapeHtml(item.text)}</span>
+        <span class="checklist-type-badge">${escapeHtml(item.type || 'general')}</span>
+      </div>
+    `;
+
+    div.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT') {
+        const chk = div.querySelector('.checklist-checkbox');
+        if (chk) chk.checked = !chk.checked;
+      }
+      item.completed = !item.completed;
+      if (item.completed) {
+        div.classList.add('completed');
+      } else {
+        div.classList.remove('completed');
+      }
+      updateTailoringProgress();
+    });
+
+    container.appendChild(div);
+  });
+}
+
+function updateTailoringProgress() {
+  const total = tailoringState.checklist.length;
+  const completed = tailoringState.checklist.filter(i => i.completed).length;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  const textEl = document.getElementById('tailoring-progress-text');
+  const barEl = document.getElementById('tailoring-progress-bar');
+  if (textEl) textEl.textContent = `${completed} of ${total} recommendations completed`;
+  if (barEl) barEl.style.width = `${pct}%`;
+}
+
+function renderTailoringSummary(summaryObj) {
+  const reasonEl = document.getElementById('summary-reason');
+  const origEl = document.getElementById('summary-original-text');
+  const tailEl = document.getElementById('summary-tailored-text');
+  const toggleEl = document.getElementById('toggle-summary');
+
+  if (!summaryObj || (!summaryObj.original && !summaryObj.rewritten)) {
+    if (reasonEl) reasonEl.textContent = 'No professional summary rewrite generated for this profile.';
+    if (origEl) origEl.textContent = 'N/A';
+    if (tailEl) tailEl.textContent = 'Switch to AI mode or provide a longer profile for tailored summaries.';
+    if (toggleEl) toggleEl.style.display = 'none';
+    return;
+  }
+
+  if (toggleEl) {
+    toggleEl.style.display = 'flex';
+    toggleEl.querySelectorAll('.toggle-btn').forEach(b => {
+      b.classList.remove('active');
+      if (b.getAttribute('data-action') === 'accept') b.classList.add('active');
+    });
+  }
+
+  if (reasonEl) reasonEl.textContent = summaryObj.reason || 'Tailored to highlight relevant competencies for this role.';
+  if (origEl) origEl.textContent = summaryObj.original || '(No original summary detected)';
+  if (tailEl) tailEl.textContent = summaryObj.rewritten;
+}
+
+function renderTailoringSkillsOrder(orderingList, keywordsList) {
+  const listEl = document.getElementById('skills-order-list');
+  const kwSection = document.getElementById('suggested-keywords-section');
+  const kwListEl = document.getElementById('suggested-keywords-list');
+  const toggleEl = document.getElementById('toggle-skills-order');
+
+  if (toggleEl) {
+    toggleEl.querySelectorAll('.toggle-btn').forEach(b => {
+      b.classList.remove('active');
+      if (b.getAttribute('data-action') === 'accept') b.classList.add('active');
+    });
+  }
+
+  if (listEl) {
+    listEl.innerHTML = '';
+    const skills = (Array.isArray(orderingList) && orderingList.length > 0) ? orderingList : (currentResult?.resumeSkillsList?.map(s => s.display) || []);
+    if (skills.length === 0) {
+      listEl.innerHTML = '<span style="font-size:12px;color:var(--on-surface-variant);">No skills to order.</span>';
+    } else {
+      skills.forEach(skill => {
+        const chip = document.createElement('span');
+        chip.className = 'skill-chip matched';
+        chip.textContent = skill;
+        listEl.appendChild(chip);
+      });
+    }
+  }
+
+  if (kwSection && kwListEl) {
+    if (Array.isArray(keywordsList) && keywordsList.length > 0) {
+      kwSection.style.display = 'block';
+      kwListEl.innerHTML = '';
+      keywordsList.forEach(kw => {
+        const chip = document.createElement('span');
+        chip.className = 'skill-chip missing';
+        chip.style.borderColor = 'var(--primary)';
+        chip.textContent = `+ ${kw}`;
+        kwListEl.appendChild(chip);
+      });
+    } else {
+      kwSection.style.display = 'none';
+    }
+  }
+}
+
+function renderTailoringExperience(expRewrites) {
+  const container = document.getElementById('experience-rewrites-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!expRewrites || expRewrites.length === 0) {
+    container.innerHTML = '<p style="font-size:12px; color:var(--on-surface-variant);">No experience bullet rewrites available. Switch to AI mode for bullet-level tailoring.</p>';
+    return;
+  }
+
+  expRewrites.forEach((group, rIdx) => {
+    const card = document.createElement('div');
+    card.className = 'experience-group-card';
+
+    let bulletsHtml = '';
+    (group.bullets || []).forEach((b, bIdx) => {
+      bulletsHtml += `
+        <div class="bullet-pair-item">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:11px; font-weight:600; color:var(--on-surface-variant);">Bullet #${bIdx + 1}</span>
+            <div class="accept-reject-toggle">
+              <button class="toggle-btn btn-accept active" data-target="bullet" data-role="${rIdx}" data-bullet="${bIdx}" data-action="accept" title="Accept bullet">
+                <span class="material-icons-round">check</span>
+              </button>
+              <button class="toggle-btn btn-reject" data-target="bullet" data-role="${rIdx}" data-bullet="${bIdx}" data-action="reject" title="Reject bullet">
+                <span class="material-icons-round">close</span>
+              </button>
+            </div>
+          </div>
+          <p class="tailoring-reason" style="margin-bottom:6px;">${escapeHtml(b.reason || 'Optimized for role keywords')}</p>
+          <div class="side-by-side-grid">
+            <div class="side-box original-box">
+              <span class="box-label">Original</span>
+              <p>${escapeHtml(b.original)}</p>
+            </div>
+            <div class="side-box tailored-box">
+              <span class="box-label">Tailored</span>
+              <p>${escapeHtml(b.rewritten)}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    card.innerHTML = `
+      <div class="experience-role-header">
+        <h4 class="experience-role-title">${escapeHtml(group.role || 'Experience')}</h4>
+      </div>
+      ${bulletsHtml}
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+function handleBatchTailoring(action) {
+  const accepted = action === 'accept';
+  tailoringState.summary.accepted = accepted;
+  tailoringState.skillsOrder.accepted = accepted;
+
+  Object.keys(tailoringState.experience).forEach(rIdx => {
+    Object.keys(tailoringState.experience[rIdx]).forEach(bIdx => {
+      tailoringState.experience[rIdx][bIdx] = accepted;
+    });
+  });
+
+  const studioEl = document.getElementById('view-tailoring');
+  if (!studioEl) return;
+  studioEl.querySelectorAll('.accept-reject-toggle').forEach(group => {
+    group.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.getAttribute('data-action') === action) {
+        btn.classList.add('active');
+      }
+    });
+  });
+
+  showToast(`All changes ${accepted ? 'accepted' : 'rejected'}.`, 'info');
+}
+
+function copyAcceptedTailoring() {
+  const text = compileTailoredText();
+  if (!text.trim()) {
+    showToast('No accepted changes to copy!', 'error');
+    return;
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Accepted changes copied to clipboard!', 'info');
+  }).catch(() => {
+    showToast('Failed to copy to clipboard.', 'error');
+  });
+}
+
+function compileTailoredText() {
+  const lines = [];
+  lines.push('=== TAILORED RESUME RECOMMENDATIONS ===\n');
+
+  if (tailoringState.summary.accepted && currentResult?.summaryRewrite?.rewritten) {
+    lines.push('--- PROFESSIONAL SUMMARY ---');
+    lines.push(currentResult.summaryRewrite.rewritten);
+    lines.push('');
+  }
+
+  if (tailoringState.skillsOrder.accepted && currentResult?.skillsOrdering?.length > 0) {
+    lines.push('--- RECOMMENDED SKILLS ORDERING ---');
+    lines.push(currentResult.skillsOrdering.join(', '));
+    lines.push('');
+  }
+
+  const expRewrites = (currentResult?.experienceRewrites && currentResult.experienceRewrites.length > 0)
+    ? currentResult.experienceRewrites
+    : ((currentResult?.bulletRewrites && currentResult.bulletRewrites.length > 0)
+        ? [{ role: "Key Experience", bullets: currentResult.bulletRewrites }]
+        : []);
+
+  let hasExp = false;
+  expRewrites.forEach((group, rIdx) => {
+    const acceptedBullets = [];
+    (group.bullets || []).forEach((b, bIdx) => {
+      if (tailoringState.experience[rIdx] && tailoringState.experience[rIdx][bIdx]) {
+        acceptedBullets.push(b.rewritten);
+      }
+    });
+    if (acceptedBullets.length > 0) {
+      if (!hasExp) {
+        lines.push('--- EXPERIENCE BULLET REWRITES ---');
+        hasExp = true;
+      }
+      lines.push(`[${group.role || 'Role'}]`);
+      acceptedBullets.forEach(b => lines.push(`• ${b}`));
+      lines.push('');
+    }
+  });
+
+  const completedChk = tailoringState.checklist.filter(i => i.completed);
+  if (completedChk.length > 0) {
+    lines.push('--- COMPLETED TAILORING CHECKLIST ---');
+    completedChk.forEach(i => lines.push(`✓ ${i.text}`));
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+function exportTailoredResume(format) {
+  const content = compileTailoredText();
+  if (!content.trim()) {
+    showToast('No accepted changes to export!', 'error');
+    return;
+  }
+
+  let blob, filename;
+  if (format === 'txt') {
+    blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    filename = 'tailored_resume.txt';
+  } else if (format === 'md') {
+    const mdContent = content
+      .replace('=== TAILORED RESUME RECOMMENDATIONS ===', '# Tailored Resume Recommendations')
+      .replace(/--- (.*) ---/g, '## $1')
+      .replace(/\[(.*)\]/g, '### $1');
+    blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+    filename = 'tailored_resume.md';
+  } else if (format === 'docx') {
+    // Generate Word-compatible HTML Document Blob
+    const htmlBody = content
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+      .replace('=== TAILORED RESUME RECOMMENDATIONS ===', '<h1>Tailored Resume Recommendations</h1>')
+      .replace(/--- (.*) ---/g, '<h2>$1</h2>')
+      .replace(/\[(.*)\]/g, '<h3>$1</h3>')
+      .replace(/• (.*)/g, '<ul><li>$1</li></ul>');
+    
+    const fullHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='utf-8'><title>Tailored Resume</title>
+      <style>
+        body { font-family: 'Arial', sans-serif; line-height: 1.5; color: #333; }
+        h1 { color: #1a73e8; font-size: 20pt; border-bottom: 2px solid #1a73e8; padding-bottom: 4px; }
+        h2 { color: #202124; font-size: 14pt; margin-top: 18pt; }
+        h3 { color: #5f6368; font-size: 12pt; margin-top: 12pt; }
+        p, li { font-size: 11pt; }
+      </style>
+      </head><body><p>${htmlBody}</p></body></html>
+    `;
+    blob = new Blob([fullHtml], { type: 'application/msword;charset=utf-8' });
+    filename = 'tailored_resume.doc';
+  } else {
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`Exported as ${filename}`, 'info');
+}
+

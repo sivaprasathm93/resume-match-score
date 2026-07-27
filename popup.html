@@ -375,11 +375,15 @@
         </div>
       </div>
 
-      <!-- Action Row: Cold Email Recruiter -->
-      <div class="action-bar-row" style="margin-bottom:14px;">
-        <button id="btn-cold-email" class="btn-secondary btn-full" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+      <!-- Action Row: Tailoring Studio & Cold Email -->
+      <div class="action-bar-row" style="margin-bottom:14px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="btn-open-tailoring" class="btn-primary" style="flex:1; min-width:140px; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <span class="material-icons-round">auto_fix_high</span>
+          Tailor Resume Studio
+        </button>
+        <button id="btn-cold-email" class="btn-secondary" style="flex:1; min-width:140px; display:flex; align-items:center; justify-content:center; gap:6px;">
           <span class="material-icons-round">mail_outline</span>
-          Draft Cold Email to Recruiter
+          Draft Cold Email
         </button>
       </div>
 
@@ -458,6 +462,126 @@
         Analyze Page
       </button>
 
+    </section>
+
+    <!-- ───── View: Tailoring Studio ───── -->
+    <section id="view-tailoring" class="view" style="display:none;">
+      <div class="tailoring-header">
+        <div class="tailoring-title-group">
+          <span class="material-icons-round" style="color:var(--primary);">auto_fix_high</span>
+          <h2>Resume Tailoring Studio</h2>
+        </div>
+        <button id="btn-tailoring-back" class="icon-btn-sm" title="Back to Results" aria-label="Back to Results">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <p class="tailoring-subtitle">Adapt your resume for this specific role. Only accept facts supported by your experience.</p>
+
+      <!-- Tailored Resume Checklist & Progress -->
+      <div class="tailoring-progress-card">
+        <div class="progress-header">
+          <span class="progress-label" id="tailoring-progress-text">0 of 0 recommendations completed</span>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="tailoring-progress-bar" style="width: 0%;"></div>
+          </div>
+        </div>
+        <div id="tailoring-checklist-container" class="tailoring-checklist"></div>
+      </div>
+
+      <!-- Accept / Reject All Controls -->
+      <div class="tailoring-batch-actions">
+        <button id="btn-accept-all" class="btn-chip btn-chip-accept">
+          <span class="material-icons-round">done_all</span> Accept All
+        </button>
+        <button id="btn-reject-all" class="btn-chip btn-chip-reject">
+          <span class="material-icons-round">remove_done</span> Reject All
+        </button>
+      </div>
+
+      <!-- Suggested Professional Summary Rewrite -->
+      <div class="tailoring-section-card" id="card-summary-rewrite">
+        <div class="tailoring-card-header">
+          <div class="tailoring-card-title">
+            <span class="material-icons-round">person_outline</span>
+            <h3>Professional Summary</h3>
+          </div>
+          <div class="accept-reject-toggle" id="toggle-summary">
+            <button class="toggle-btn btn-accept active" data-target="summary" data-action="accept" title="Accept summary rewrite">
+              <span class="material-icons-round">check</span>
+            </button>
+            <button class="toggle-btn btn-reject" data-target="summary" data-action="reject" title="Reject summary rewrite">
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+        </div>
+        <p class="tailoring-reason" id="summary-reason"></p>
+        <div class="side-by-side-grid">
+          <div class="side-box original-box">
+            <span class="box-label">Original</span>
+            <p id="summary-original-text"></p>
+          </div>
+          <div class="side-box tailored-box">
+            <span class="box-label">Tailored</span>
+            <p id="summary-tailored-text"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommended Skills Ordering -->
+      <div class="tailoring-section-card" id="card-skills-order">
+        <div class="tailoring-card-header">
+          <div class="tailoring-card-title">
+            <span class="material-icons-round">sort</span>
+            <h3>Skills Section Ordering</h3>
+          </div>
+          <div class="accept-reject-toggle" id="toggle-skills-order">
+            <button class="toggle-btn btn-accept active" data-target="skillsOrder" data-action="accept" title="Accept skills ordering">
+              <span class="material-icons-round">check</span>
+            </button>
+            <button class="toggle-btn btn-reject" data-target="skillsOrder" data-action="reject" title="Reject skills ordering">
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+        </div>
+        <p class="tailoring-reason">Recommended skill sequence placing required job skills first:</p>
+        <div id="skills-order-list" class="skill-chips" style="margin-top:8px;"></div>
+        <div id="suggested-keywords-section" style="margin-top:12px; display:none;">
+          <p class="tailoring-reason" style="margin-bottom:6px;"><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:var(--primary);">add_circle_outline</span> Suggested keywords from job description to add:</p>
+          <div id="suggested-keywords-list" class="skill-chips"></div>
+        </div>
+      </div>
+
+      <!-- Experience Grouped Bullet Rewrites -->
+      <div class="tailoring-section-card" id="card-experience-rewrites">
+        <div class="tailoring-card-header" style="margin-bottom:8px;">
+          <div class="tailoring-card-title">
+            <span class="material-icons-round">work_history</span>
+            <h3>Experience Bullet Rewrites</h3>
+          </div>
+        </div>
+        <p class="tailoring-reason" style="margin-bottom:12px;">Rewritten in CAR/XYZ format to emphasize matched skills:</p>
+        <div id="experience-rewrites-container" class="experience-groups-list"></div>
+      </div>
+
+      <!-- Action Footer: Copy & Export -->
+      <div class="tailoring-footer-actions">
+        <button id="btn-copy-tailored" class="btn-primary" style="flex: 2; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <span class="material-icons-round">content_copy</span>
+          Copy Accepted Changes
+        </button>
+        <div class="export-dropdown-container" style="flex: 1; position:relative;">
+          <button id="btn-export-dropdown" class="btn-secondary" style="width:100%; display:flex; align-items:center; justify-content:center; gap:4px;">
+            <span class="material-icons-round">download</span>
+            Export <span class="material-icons-round" style="font-size:16px;">arrow_drop_down</span>
+          </button>
+          <div id="export-menu" class="export-menu" style="display:none;">
+            <button class="export-item" data-format="txt"><span class="material-icons-round">description</span> Text (.txt)</button>
+            <button class="export-item" data-format="md"><span class="material-icons-round">code</span> Markdown (.md)</button>
+            <button class="export-item" data-format="docx"><span class="material-icons-round">article</span> Word (.docx)</button>
+          </div>
+        </div>
+      </div>
+      <button id="btn-tailoring-return" class="btn-text-sm" style="width:100%; margin-top:12px; text-align:center;">Back to Results Dashboard</button>
     </section>
 
     <!-- ───── View: History ───── -->

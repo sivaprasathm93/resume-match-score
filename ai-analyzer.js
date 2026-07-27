@@ -29,15 +29,31 @@ Produce ONLY valid JSON — no markdown code fences, no commentary before or aft
   "bulletRewrites": [
     {"original": "<exact bullet from candidate resume>", "rewritten": "<rewritten bullet in CAR/XYZ format surfacing matched skills for this JD>", "reason": "<why this improves alignment with this role>"}
   ],
+  "summaryRewrite": {"original": "<exact original summary/profile text from resume if present, or empty string>", "rewritten": "<rewritten professional summary tailored specifically to align with this role>", "reason": "<why this summary improves alignment>"},
+  "skillsOrdering": [/* array of candidate skill names ordered by relevance to this JD, placing required matched skills first */],
+  "experienceRewrites": [
+    {"role": "<exact role/company header from resume, e.g. Senior Software Engineer at Tech Corp>", "bullets": [
+      {"original": "<exact original bullet from candidate resume>", "rewritten": "<rewritten bullet in CAR/XYZ format surfacing matched skills for this JD>", "reason": "<why this improves alignment>"}
+    ]}
+  ],
+  "suggestedKeywords": [/* 3-6 specific keywords or phrases from JD that candidate has evidence for or should highlight */],
+  "tailoringChecklist": [
+    {"id": "chk_1", "text": "Add TypeScript to skills section", "type": "skill_add", "completed": false},
+    {"id": "chk_2", "text": "Strengthen React achievement bullet", "type": "bullet", "completed": false},
+    {"id": "chk_3", "text": "Mention CI/CD experience", "type": "skill_add", "completed": false}
+  ],
   "coldEmailSubject": "Application for <exact role title from the job text>",
   "coldEmailBody": "Hi [Hiring Manager],\\n\\n<3-4 line email referencing 2-3 of the candidate's matched skills>\\n\\nBest regards,\\n[Your Name]"
 }
 
 Guidelines:
+- CRITICAL GUARDRAIL: Only rewrite facts already supported by the resume. Never invent skills, numbers, employers, metrics, or experience not explicitly stated or clearly implied in the candidate's original resume.
 - Each of matchedRequired / matchedPreferred / missingRequired / missingPreferred: max 8 entries, specific skill or tool names only — never vague terms like "communication" or "team player".
 - A skill belongs in exactly one of the four skill lists. Never list the same skill as both matched and missing, and never repeat a skill across lists.
 - score reflects overall fit, weighting required skills higher than preferred, and incorporating the experience-level and transferable-skill judgment above — it is not a raw keyword ratio.
-- bulletRewrites: exactly 1-2 items proposing concrete rewrites of actual candidate resume bullets using CAR (Challenge-Action-Result) or XYZ (Accomplished X, measured by Y, by doing Z) format to highlight matched skills for this JD.
+- bulletRewrites: exactly 1-2 items proposing concrete rewrites of actual candidate resume bullets using CAR (Challenge-Action-Result) or XYZ (Accomplished X, measured by Y, by doing Z) format.
+- experienceRewrites: group rewritten bullets by candidate's actual employer or job role header. Include 1-3 roles, with 1-2 bullet rewrites per role.
+- tailoringChecklist: provide 4-6 concrete, actionable recommendations for adapting this resume to this specific job description. Each item should have a unique id ("chk_1", "chk_2", etc.), text, type ("skill_add", "bullet", "summary", "keyword"), and completed set to false.
 - coldEmailBody is exactly one email, 3-4 lines, referencing only real matched skills — never invent a company name, hiring manager name, or metric that isn't in the source text.
 - Escape every newline inside JSON string values as \\n. Output nothing but the JSON object itself.`;
 
@@ -142,6 +158,10 @@ function assertAnalysisResult(data) {
     "strengths",
     "concerns",
     "suggestions",
+    "skillsOrdering",
+    "experienceRewrites",
+    "suggestedKeywords",
+    "tailoringChecklist",
   ];
   for (const field of listFields) {
     if (data[field] !== undefined && !Array.isArray(data[field])) {
@@ -283,6 +303,39 @@ function parseAIResponse(rawText) {
     reason: String(b?.reason || ""),
   })).filter(b => b.original && b.rewritten).slice(0, 2);
 
+  const summaryRewrite = {
+    original: String(data?.summaryRewrite?.original || ""),
+    rewritten: String(data?.summaryRewrite?.rewritten || ""),
+    reason: String(data?.summaryRewrite?.reason || ""),
+  };
+
+  const skillsOrdering = (Array.isArray(data.skillsOrdering) ? data.skillsOrdering : []).map(String).filter(Boolean);
+
+  const experienceRewrites = (Array.isArray(data.experienceRewrites) ? data.experienceRewrites : []).map((grp) => ({
+    role: String(grp?.role || "Experience"),
+    bullets: (Array.isArray(grp?.bullets) ? grp.bullets : []).map((b) => ({
+      original: String(b?.original || ""),
+      rewritten: String(b?.rewritten || ""),
+      reason: String(b?.reason || ""),
+    })).filter((b) => b.original && b.rewritten),
+  })).filter((grp) => grp.bullets.length > 0);
+
+  if (experienceRewrites.length === 0 && bulletRewrites.length > 0) {
+    experienceRewrites.push({
+      role: "Key Experience",
+      bullets: bulletRewrites,
+    });
+  }
+
+  const suggestedKeywords = (Array.isArray(data.suggestedKeywords) ? data.suggestedKeywords : []).map(String).filter(Boolean);
+
+  const tailoringChecklist = (Array.isArray(data.tailoringChecklist) ? data.tailoringChecklist : []).map((item, idx) => ({
+    id: String(item?.id || `chk_${idx + 1}`),
+    text: String(item?.text || ""),
+    type: String(item?.type || "general"),
+    completed: Boolean(item?.completed || false),
+  })).filter((item) => item.text);
+
   const reqTotal = matchedRequired.size + missingRequired.size;
   const prefTotal = matchedPreferred.size + missingPreferred.size;
   const requiredPct = reqTotal > 0 ? Math.round((matchedRequired.size / reqTotal) * 100) : 100;
@@ -348,6 +401,11 @@ function parseAIResponse(rawText) {
     totalResumeSkills: matchedRequiredList.length + matchedPreferredList.length,
     suggestions,
     bulletRewrites,
+    summaryRewrite,
+    skillsOrdering,
+    experienceRewrites,
+    suggestedKeywords,
+    tailoringChecklist,
     coldEmailSubject: data.coldEmailSubject || "Application for [Role Title]",
     coldEmailBody: data.coldEmailBody || "",
     resumeSkillsList: [...matchedRequiredList, ...matchedPreferredList].map(
