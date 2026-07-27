@@ -5,26 +5,36 @@
 // 2. PROMPT ENGINEERING
 // ─────────────────────────────────────────────
 
-const AI_SYSTEM_PROMPT = `You are an expert resume-to-job-match analyst. Given a candidate’s resume text and a job description text, compare them and rate the fit. Produce ONLY valid JSON in this exact format:
+const AI_SYSTEM_PROMPT = `You are an expert resume-to-job-match analyst. Given a candidate's resume text and a job description text, compare them and rate the fit.
+
+Ground every judgment strictly in the two documents provided. Do not assume a skill, tool, or certification the candidate holds if it is not stated or clearly implied in the resume text, and do not invent job requirements that aren't in the job text.
+
+When judging fit, give partial credit for transferable or adjacent skills instead of treating every comparison as binary (e.g. Cypress experience is relevant evidence toward a Playwright requirement; Vue experience is relevant evidence toward a React requirement). Weigh the candidate's total years of experience against any years-of-experience requirement stated in the job text.
+
+Produce ONLY valid JSON — no markdown code fences, no commentary before or after — in this exact shape:
 {
-  "score": <integer 0-100>,
-  "verdictBadge": "<PRIORITISE | CONSIDER | PASS>",
-  "honestTake": "<1-2 sentence summary>",
-  "matchedSkills": [/* list of specific skill names */],
-  "missingSkills": [/* all missing skill names */],
-  "requiredMissing": [/* missing required skills */],
-  "preferredMissing": [/* missing preferred skills */],
-  "strengths": [/* 2-3 bullet points on candidate strengths for this role */],
-  "concerns": [/* 1-2 bullet points on candidate concerns */],
+  "score": <integer 0-100, overall fit>,
+  "honestTake": "<1-2 sentence, direct summary of the fit>",
+  "matchedRequired": [/* required job skills the resume evidences — specific names like "Python", "React" */],
+  "matchedPreferred": [/* preferred/nice-to-have job skills the resume evidences */],
+  "missingRequired": [/* required job skills the resume does not evidence */],
+  "missingPreferred": [/* preferred job skills the resume does not evidence */],
+  "strengths": [/* exactly 2-3 bullets on what makes the candidate stand out for THIS role */],
+  "concerns": [/* exactly 1-2 bullets on the most significant gaps, phrased constructively */],
   "suggestions": [
-    {"icon": "🎯", "title": "title", "description": "actionable advice", "priority": "high", "skills": [/* skills*/]},
-    {"icon": "⭐", "title": "title", "description": "actionable advice", "priority": "medium", "skills": [/* skills*/]}
+    {"icon": "🎯", "title": "<short title>", "description": "<one actionable step>", "priority": "high", "skills": [/* 1-3 related skills */]},
+    {"icon": "⭐", "title": "<short title>", "description": "<one actionable step>", "priority": "medium", "skills": [/* 1-3 related skills */]}
   ],
-  "coldEmailSubject": "Application for [Role Title]",
-  "coldEmailBody": "Hi [Hiring Manager],\\n\\n<3-4 line email referencing 2-3 matched skills>\\n\\nBest regards,\\n[Your Name]"
+  "coldEmailSubject": "Application for <exact role title from the job text>",
+  "coldEmailBody": "Hi [Hiring Manager],\\n\\n<3-4 line email referencing 2-3 of the candidate's matched skills>\\n\\nBest regards,\\n[Your Name]"
 }
 
-Guidelines: Score is an integer 0–100. If score ≥80 use “PRIORITISE”, if 60–79 use “CONSIDER”, else use “PASS”. List specific skills (e.g. “Python”, “React”), not vague terms. \`matchedSkills\` are skills both the resume and job have. \`missingSkills\` covers all required+preferred skills the candidate lacks (split into requiredMissing and preferredMissing). In \`strengths\`, highlight what makes the candidate stand out *for this role*. In \`concerns\`, mention any significant gaps constructively. Suggestions should be actionable (linking to missing skills), with a high-priority 🎯 tip and a medium-priority ⭐ tip. The cold email should reference 2–3 matched skills. Remember to consider experience level and transferable skills. No extra output beyond the JSON.`;
+Guidelines:
+- Each of matchedRequired / matchedPreferred / missingRequired / missingPreferred: max 8 entries, specific skill or tool names only — never vague terms like "communication" or "team player".
+- A skill belongs in exactly one of the four skill lists. Never list the same skill as both matched and missing, and never repeat a skill across lists.
+- score reflects overall fit, weighting required skills higher than preferred, and incorporating the experience-level and transferable-skill judgment above — it is not a raw keyword ratio.
+- coldEmailBody is exactly one email, 3-4 lines, referencing only real matched skills — never invent a company name, hiring manager name, or metric that isn't in the source text.
+- Escape every newline inside JSON string values as \\n. Output nothing but the JSON object itself.`;
 
 function buildUserPrompt(resumeText, jobText) {
   return `=== RESUME ===
@@ -94,6 +104,7 @@ async function promptNvidiaAPI(systemPrompt, userPrompt, apiKey) {
       ],
       temperature: 0.3,
       max_tokens: 2048,
+      response_format: { type: "json_object" },
     }),
   });
 
@@ -136,16 +147,16 @@ function parseAIResponse(rawText) {
   const score = Math.min(100, Math.max(0, parseInt(data.score, 10) || 0));
   const score10 = (score / 10).toFixed(score % 10 === 0 ? 0 : 1);
 
-  // Map verdict
-  let verdictBadge = (data.verdictBadge || "CONSIDER").toUpperCase();
-  let verdictColor, verdictIcon, verdictTitle;
-
-  if (verdictBadge === "PRIORITISE" || verdictBadge === "PRIORITIZE") {
+  // Verdict is derived from score in code, not trusted from the model — keeps
+  // the bucketing consistent even if the model's own label and score disagree.
+  let verdictBadge, verdictColor, verdictIcon, verdictTitle;
+  if (score >= 80) {
     verdictBadge = "PRIORITISE";
     verdictColor = "#107c41";
     verdictIcon = "local_fire_department";
     verdictTitle = "Prioritise this 🔥";
-  } else if (verdictBadge === "CONSIDER") {
+  } else if (score >= 60) {
+    verdictBadge = "CONSIDER";
     verdictColor = "#e37400";
     verdictIcon = "bolt";
     verdictTitle = "Consider this ⚡";
@@ -156,38 +167,42 @@ function parseAIResponse(rawText) {
     verdictTitle = "Pass on this 🚫";
   }
 
-  // Build skill Sets for UI compatibility (ensure they are always arrays)
-  const matchedSkills = Array.isArray(data.matchedSkills)
-    ? data.matchedSkills
+  // Build skill Sets for UI compatibility (ensure they are always arrays).
+  // Matched and missing are now both split required/preferred by the model,
+  // so the UI's "Required"/"Preferred" badges are accurate in AI mode too.
+  const matchedRequiredList = Array.isArray(data.matchedRequired)
+    ? data.matchedRequired
     : [];
-  const missingSkills = Array.isArray(data.missingSkills)
-    ? data.missingSkills
+  const matchedPreferredList = Array.isArray(data.matchedPreferred)
+    ? data.matchedPreferred
     : [];
-  const requiredMissing = Array.isArray(data.requiredMissing)
-    ? data.requiredMissing
-    : missingSkills;
-  const preferredMissing = Array.isArray(data.preferredMissing)
-    ? data.preferredMissing
+  const missingRequiredList = Array.isArray(data.missingRequired)
+    ? data.missingRequired
+    : [];
+  const missingPreferredList = Array.isArray(data.missingPreferred)
+    ? data.missingPreferred
     : [];
 
   // Convert to Sets with normalized keys
   const matchedRequired = new Set(
-    matchedSkills.map((s) => String(s).toLowerCase()),
+    matchedRequiredList.map((s) => String(s).toLowerCase()),
   );
-  const matchedPreferred = new Set();
+  const matchedPreferred = new Set(
+    matchedPreferredList.map((s) => String(s).toLowerCase()),
+  );
   const missingRequired = new Set(
-    requiredMissing.map((s) => String(s).toLowerCase()),
+    missingRequiredList.map((s) => String(s).toLowerCase()),
   );
   const missingPreferred = new Set(
-    preferredMissing.map((s) => String(s).toLowerCase()),
+    missingPreferredList.map((s) => String(s).toLowerCase()),
   );
 
   // Register any AI-detected skills not in SKILLS_DATABASE so getSkillInfo works
   const allAISkills = [
-    ...matchedSkills,
-    ...missingSkills,
-    ...requiredMissing,
-    ...preferredMissing,
+    ...matchedRequiredList,
+    ...matchedPreferredList,
+    ...missingRequiredList,
+    ...missingPreferredList,
   ];
   for (const skill of allAISkills) {
     const key = String(skill).toLowerCase();
@@ -256,16 +271,22 @@ function parseAIResponse(rawText) {
     missingPreferred,
     bonusSkills: new Set(),
     yearsMap: new Map(),
-    totalJobSkills: matchedSkills.length + missingSkills.length,
-    totalResumeSkills: matchedSkills.length,
+    totalJobSkills:
+      matchedRequiredList.length +
+      matchedPreferredList.length +
+      missingRequiredList.length +
+      missingPreferredList.length,
+    totalResumeSkills: matchedRequiredList.length + matchedPreferredList.length,
     suggestions,
     coldEmailSubject: data.coldEmailSubject || "Application for [Role Title]",
     coldEmailBody: data.coldEmailBody || "",
-    resumeSkillsList: matchedSkills.map((s) => ({
-      display: s,
-      category: SKILLS_DATABASE[s.toLowerCase()]?.category || "AI Detected",
-      aliases: [],
-    })),
+    resumeSkillsList: [...matchedRequiredList, ...matchedPreferredList].map(
+      (s) => ({
+        display: s,
+        category: SKILLS_DATABASE[s.toLowerCase()]?.category || "AI Detected",
+        aliases: [],
+      }),
+    ),
     jobTitle: "",
     isAIGenerated: true,
   };
@@ -344,7 +365,7 @@ function stripPII(text) {
         sanitized = lines.join("\n");
 
         if (namePart.length >= 3) {
-          const escapedName = namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const escapedName = namePart.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           sanitized = sanitized.replace(
             new RegExp(`\\b${escapedName}\\b`, "gi"),
             "[NAME REMOVED]",
