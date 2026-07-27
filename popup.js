@@ -1070,7 +1070,6 @@ function renderHistoryList() {
         </div>
       </div>
       <div class="history-card-bottom">
-        <span class="history-meta"><span class="material-icons-round" style="font-size:12px;">person</span> ${escapeHtml(item.resumeProfile || 'Default Resume')}</span>
         <span class="history-meta"><span class="material-icons-round" style="font-size:12px;">schedule</span> ${timeAgoStr}</span>
       </div>
       <div class="history-card-actions">
